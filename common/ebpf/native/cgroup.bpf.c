@@ -135,10 +135,10 @@ INLINE bool fakeip_ipv6(const struct sb_ebpf_cgroup_control *config, const __u8 
 }
 
 INLINE bool base_bypass(void *ctx, const struct sb_ebpf_cgroup_control *config, __u8 protocol, __u16 port) {
-    if (is_cookie_bypassed(ctx)) return true;
     if (!protocol_selected(config, protocol)) return true;
     if (service_port(protocol, port)) return true;
     if (port_bypassed(config, protocol, port)) return true;
+    if (is_cookie_bypassed(ctx)) return true;
     return false;
 }
 
@@ -179,8 +179,9 @@ INLINE void original_v6(
 INLINE bool equal_original(const struct sb_ebpf_original_dst *left, const struct sb_ebpf_original_dst *right) {
     const __u32 *l = (const __u32 *)left;
     const __u32 *r = (const __u32 *)right;
+    if (l[0] != r[0] || l[1] != r[1]) return false;
 #pragma clang loop unroll(full)
-    for (__u32 index = 0U; index < __builtin_offsetof(struct sb_ebpf_original_dst, created_at_ns) / sizeof(__u32); ++index) {
+    for (__u32 index = 2U; index < __builtin_offsetof(struct sb_ebpf_original_dst, created_at_ns) / sizeof(__u32); ++index) {
         if (l[index] != r[index]) return false;
     }
     return true;
@@ -205,6 +206,7 @@ INLINE bool token_v4(
     key->family = AF_INET_VALUE;
     key->protocol = protocol;
     key->listener_port = config->listener_port;
+    void *target_map = (protocol == TCP_VALUE) ? (void *)&cgroup_tcp_redirect : (void *)&cgroup_udp_redirect;
 #pragma clang loop unroll(full)
     for (__u32 attempt = 0U; attempt < REDIRECT_TOKEN_ATTEMPTS; ++attempt) {
         __u32 candidate = config->redirect_ipv4_prefix |
@@ -212,14 +214,10 @@ INLINE bool token_v4(
         __u32 network_candidate = swap32(candidate);
         __builtin_memset(key->token_addr, 0, sizeof(key->token_addr));
         __builtin_memcpy(key->token_addr, &network_candidate, sizeof(network_candidate));
-        struct sb_ebpf_original_dst *existing = map_lookup(&cgroup_udp_redirect, key);
-        if (protocol == TCP_VALUE) existing = map_lookup(&cgroup_tcp_redirect, key);
+        struct sb_ebpf_original_dst *existing = map_lookup(target_map, key);
         if (existing != 0 && equal_original(existing, value)) return true;
-        if (existing == 0 &&
-            (protocol == TCP_VALUE
-                ? map_update(&cgroup_tcp_redirect, key, value, BPF_NOEXIST)
-                : map_update(&cgroup_udp_redirect, key, value, BPF_NOEXIST)) == 0) return true;
-        seed += 0x9e3779b9U;
+        if (existing == 0 && map_update(target_map, key, value, BPF_NOEXIST) == 0) return true;
+        seed = mix32(seed + 0x9e3779b9U);
     }
     return false;
 }
@@ -237,20 +235,17 @@ INLINE bool token_v6(
     key->family = AF_INET6_VALUE;
     key->protocol = protocol;
     key->listener_port = config->listener_port;
+    void *target_map = (protocol == TCP_VALUE) ? (void *)&cgroup_tcp_redirect : (void *)&cgroup_udp_redirect;
 #pragma clang loop unroll(full)
     for (__u32 attempt = 0U; attempt < REDIRECT_TOKEN_ATTEMPTS; ++attempt) {
         __builtin_memcpy(key->token_addr, config->redirect_ipv6_prefix, 8U);
         __builtin_memcpy(key->token_addr + 8U, &seed0, 4U);
         __builtin_memcpy(key->token_addr + 12U, &seed1, 4U);
-        struct sb_ebpf_original_dst *existing = map_lookup(&cgroup_udp_redirect, key);
-        if (protocol == TCP_VALUE) existing = map_lookup(&cgroup_tcp_redirect, key);
+        struct sb_ebpf_original_dst *existing = map_lookup(target_map, key);
         if (existing != 0 && equal_original(existing, value)) return true;
-        if (existing == 0 &&
-            (protocol == TCP_VALUE
-                ? map_update(&cgroup_tcp_redirect, key, value, BPF_NOEXIST)
-                : map_update(&cgroup_udp_redirect, key, value, BPF_NOEXIST)) == 0) return true;
-        seed0 += 0x9e3779b9U;
-        seed1 += 0x7f4a7c15U;
+        if (existing == 0 && map_update(target_map, key, value, BPF_NOEXIST) == 0) return true;
+        seed0 = mix32(seed0 + 0x9e3779b9U);
+        seed1 = mix32(seed1 + 0x7f4a7c15U);
     }
     return false;
 }
@@ -308,7 +303,7 @@ INLINE int flow_action(
     struct sb_ebpf_udp_flow_value *flow = map_lookup(&cgroup_udp_flow, &flow_key);
     if (flow == 0) return FLOW_CACHE_MISS;
     __u32 now = (__u32)(ktime_get_ns() / 1000000000ULL);
-    if (now - flow->last_seen_seconds > config->udp_timeout_seconds) {
+    if (now >= flow->last_seen_seconds && now - flow->last_seen_seconds > config->udp_timeout_seconds) {
         map_delete(&cgroup_udp_flow, &flow_key);
         return FLOW_CACHE_MISS;
     }

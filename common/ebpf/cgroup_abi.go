@@ -47,6 +47,7 @@ const (
 	cgroupFlagFakeIPIPv4
 	cgroupFlagFakeIPIPv6
 	cgroupFlagBypassPort
+	cgroupFlagSocketBypassActive
 )
 
 type cgroupControl struct {
