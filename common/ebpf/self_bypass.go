@@ -13,6 +13,7 @@ import (
 
 	CiliumEBPF "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
+	"github.com/cilium/ebpf/features"
 	"github.com/cilium/ebpf/link"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -25,11 +26,13 @@ const selfBypassSocketCapacity = 65536
 // map is populated by cgroup hooks when the process has an exclusive cgroup,
 // or by the socket control callback when cgroup attachment is unavailable.
 type SelfBypass struct {
-	access   sync.RWMutex
-	sockets  *CiliumEBPF.Map
-	programs []*CiliumEBPF.Program
-	links    []link.Link
-	mode     atomic.Uint32
+	access             sync.RWMutex
+	sockets            *CiliumEBPF.Map
+	skStorageMap       *CiliumEBPF.Map
+	skStorageSupported bool
+	programs           []*CiliumEBPF.Program
+	links              []link.Link
+	mode               atomic.Uint32
 }
 
 type SelfBypassCgroupConfig struct {
@@ -44,10 +47,13 @@ const (
 	SelfBypassUserspace SelfBypassMode = iota
 	SelfBypassCgroupSocket
 	SelfBypassCgroupSocketAddr
+	SelfBypassSkStorage
 )
 
 func (m SelfBypassMode) String() string {
 	switch m {
+	case SelfBypassSkStorage:
+		return "sk_storage_direct"
 	case SelfBypassCgroupSocket:
 		return "cgroup_socket_cookie"
 	case SelfBypassCgroupSocketAddr:
@@ -69,7 +75,21 @@ func NewSelfBypass() (*SelfBypass, error) {
 	if err != nil {
 		return nil, E.Cause(err, "create eBPF self-bypass socket map")
 	}
-	return &SelfBypass{sockets: sockets}, nil
+	bypass := &SelfBypass{sockets: sockets}
+	if err := features.HaveMapType(CiliumEBPF.SkStorage); err == nil {
+		skMap, skErr := CiliumEBPF.NewMap(&CiliumEBPF.MapSpec{
+			Name:       "sb_self_sk",
+			Type:       CiliumEBPF.SkStorage,
+			KeySize:    4,
+			ValueSize:  4,
+			Flags:      unix.BPF_F_NO_PREALLOC,
+		})
+		if skErr == nil {
+			bypass.skStorageMap = skMap
+			bypass.skStorageSupported = true
+		}
+	}
+	return bypass, nil
 }
 
 // Map returns the map that must be shared with the local TC programs.
@@ -80,6 +100,24 @@ func (b *SelfBypass) Map() *CiliumEBPF.Map {
 	b.access.RLock()
 	defer b.access.RUnlock()
 	return b.sockets
+}
+
+func (b *SelfBypass) SkStorageMap() *CiliumEBPF.Map {
+	if b == nil {
+		return nil
+	}
+	b.access.RLock()
+	defer b.access.RUnlock()
+	return b.skStorageMap
+}
+
+func (b *SelfBypass) SkStorageSupported() bool {
+	if b == nil {
+		return false
+	}
+	b.access.RLock()
+	defer b.access.RUnlock()
+	return b.skStorageSupported
 }
 
 // AttachCgroup enables automatic socket-cookie registration when the current
@@ -335,6 +373,20 @@ func (b *SelfBypass) RegisterSocket(rawConn syscall.RawConn) error {
 	if b.sockets == nil || b.CgroupAttached() {
 		return nil
 	}
+	if b.skStorageSupported && b.skStorageMap != nil {
+		tagged := false
+		err := control.Raw(rawConn, func(fd uintptr) error {
+			key := uint32(fd)
+			value := uint32(SocketMetadataSelfBypass)
+			if uErr := b.skStorageMap.Update(&key, &value, CiliumEBPF.UpdateAny); uErr == nil {
+				tagged = true
+			}
+			return nil
+		})
+		if err == nil && tagged {
+			return nil
+		}
+	}
 	var cookie uint64
 	err := control.Raw(rawConn, func(fd uintptr) error {
 		var err error
@@ -464,6 +516,10 @@ func (b *SelfBypass) Close() error {
 	if b.sockets != nil {
 		closeErr = E.Errors(closeErr, b.sockets.Close())
 		b.sockets = nil
+	}
+	if b.skStorageMap != nil {
+		closeErr = E.Errors(closeErr, b.skStorageMap.Close())
+		b.skStorageMap = nil
 	}
 	return closeErr
 }

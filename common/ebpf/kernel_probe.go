@@ -309,6 +309,7 @@ func probeLPMTrieUpdateSafety(report *KernelProbeReport, needed bool) {
 }
 
 func probeSocketCapabilities(report *KernelProbeReport, enableIPv6, enableTCP, enableUDP bool) {
+	probeMapType(report, "common", KernelProbePerformance, CiliumEBPF.SkStorage, "Fast, lock-free socket-local storage for self-bypass.")
 	if enableTCP {
 		probeSocketOption(report, "IPv4 transparent TCP sockets", unix.AF_INET, unix.SOCK_STREAM, unix.SOL_IP, unix.IP_TRANSPARENT,
 			"Transparent TCP listeners and socket assignment.")
