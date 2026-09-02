@@ -461,10 +461,15 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 				if serviceName, exists := proxy["serviceName"]; exists && serviceName != "" {
 					Transport.GRPCOptions.ServiceName = serviceName
 				}
+			case "xhttp", "splithttp":
+				Transport.Type = C.V2RayTransportTypeXHTTP
+				Transport.XHTTPOptions = parseXHTTPLinkOptions(proxy)
 			default:
 				continue
 			}
 			options.Transport = &Transport
+		case "ech":
+			parseECHLink(value, &TLSOptions)
 		case "security":
 			switch value {
 			case "tls":
@@ -763,4 +768,71 @@ func parseAnyTLSLink(link string) (option.Outbound, error) {
 	options.TLS = &TLSOptions
 	outbound.Options = &options
 	return outbound, nil
+}
+
+func parseXHTTPLinkOptions(proxy map[string]string) option.V2RayXHTTPOptions {
+	var xhttpOptions option.V2RayXHTTPOptions
+	if extraStr, ok := proxy["extra"]; ok && extraStr != "" {
+		_ = json.Unmarshal([]byte(extraStr), &xhttpOptions)
+		var extraMap map[string]any
+		if err := json.Unmarshal([]byte(extraStr), &extraMap); err == nil {
+			for k, v := range extraMap {
+				switch strings.ToLower(strings.ReplaceAll(k, "_", "")) {
+				case "xpaddingobfsmode":
+					if b, ok := v.(bool); ok {
+						xhttpOptions.XPaddingObfsMode = b
+					}
+				case "xpaddingkey":
+					if s, ok := v.(string); ok {
+						xhttpOptions.XPaddingKey = s
+					}
+				case "xpaddingheader":
+					if s, ok := v.(string); ok {
+						xhttpOptions.XPaddingHeader = s
+					}
+				case "xpaddingplacement":
+					if s, ok := v.(string); ok {
+						xhttpOptions.XPaddingPlacement = s
+					}
+				case "xpaddingmethod":
+					if s, ok := v.(string); ok {
+						xhttpOptions.XPaddingMethod = s
+					}
+				case "mode":
+					if s, ok := v.(string); ok && s != "" {
+						xhttpOptions.Mode = s
+					}
+				}
+			}
+		}
+	}
+	if host, ok := proxy["host"]; ok && host != "" {
+		xhttpOptions.Host = host
+	}
+	if path, ok := proxy["path"]; ok && path != "" {
+		xhttpOptions.Path = path
+	}
+	if mode, ok := proxy["mode"]; ok && mode != "" {
+		xhttpOptions.Mode = mode
+	}
+	return xhttpOptions
+}
+
+func parseECHLink(value string, tlsOptions *option.OutboundTLSOptions) {
+	if value == "" {
+		return
+	}
+	tlsOptions.Enabled = true
+	if tlsOptions.ECH == nil {
+		tlsOptions.ECH = &option.OutboundECHOptions{}
+	}
+	tlsOptions.ECH.Enabled = true
+	queryDomain := value
+	if idx := strings.Index(queryDomain, "+"); idx != -1 {
+		queryDomain = queryDomain[:idx]
+	}
+	queryDomain = strings.TrimSpace(queryDomain)
+	if queryDomain != "" {
+		tlsOptions.ECH.QueryServerName = queryDomain
+	}
 }

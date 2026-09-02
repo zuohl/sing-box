@@ -15,6 +15,7 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
 * QUIC
 * gRPC
 * HTTPUpgrade
+* XHTTP
 
 !!! warning "与 v2ray-core 的区别"
 
@@ -216,3 +217,88 @@ HTTP 请求路径
 HTTP 请求的额外标头。
 
 如果设置，服务器将写入响应。
+
+### XHTTP
+
+XHTTP (SplitHTTP) 是一种将双向全双工流拆分为独立 HTTP 请求与长连接下载流的新型传输协议，支持多路复用、CDN 前置代理与流量伪装。
+
+```json
+{
+  "type": "xhttp",
+  "mode": "auto",
+  "host": "example.com",
+  "path": "/xhttp-path",
+  "headers": {},
+  "x_padding_bytes": "100-1000",
+  "sc_max_each_post_bytes": 1000000,
+  "sc_min_posts_interval_ms": 30,
+  "xmux": {
+    "max_connections": 3,
+    "c_max_reuse_times": "0-0",
+    "h_max_request_times": "600-900",
+    "h_max_reusable_secs": "1800-3000"
+  }
+}
+```
+
+#### mode
+
+工作模式。
+
+可选值：
+
+* `auto`：自动协商或流式/分片自适应（默认）。
+* `packet-up`：数据包上行模式（分片上传，适用于无流式上传支持的 CDN）。
+* `stream-up`：流式上行模式（持续长连接分块上传）。
+* `stream-one`：单向全双工长流模式（类似 HTTP/2 双向流）。
+
+#### host
+
+HTTP 请求的主机域名。
+
+#### path
+
+HTTP 请求的基础路径。
+
+#### headers
+
+HTTP 请求的额外键值对标头。
+
+#### x_padding_bytes
+
+XHTTP 填充字节数范围，用于混淆特征。例如 `"100-1000"` 或单个数字。
+
+#### sc_max_each_post_bytes
+
+在分片上传（`packet-up` / `auto`）时每个 POST 请求的最大字节数。默认 `1000000`（约 1MB）。
+
+#### sc_min_posts_interval_ms
+
+分片上传请求之间的最小间隔（毫秒）。默认 `30`。
+
+#### xmux
+
+XHTTP 连接复用与生命周期管理配置：
+
+* `max_connections`：最大连接并发数范围（例如 `3` 或 `"1-4"`）。
+* `max_concurrency`：最大流并发数范围（与 `max_connections` 互斥）。
+* `c_max_reuse_times`：底层 TCP 连接最大复用次数范围。
+* `h_max_request_times`：HTTP 请求最大复用次数范围（默认 `"600-900"`）。
+* `h_max_reusable_secs`：连接最大可复用存活时间（秒，默认 `"1800-3000"`）。
+
+#### download
+
+进阶独立下载通道配置（用于上下行分离或不同 CDN/节点加速配置）：
+
+```json
+{
+  "download": {
+    "server": "download.example.com",
+    "server_port": 443,
+    "tls": {
+      "enabled": true,
+      "server_name": "download.example.com"
+    }
+  }
+}
+```
