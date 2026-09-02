@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -147,6 +148,11 @@ func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Ou
 	}
 	activeTags := a.activeOutboundTags()
 	a.removeUseless(newTags)
+	if a.logFactory != nil && a.logFactory.Level() >= log.LevelDebug && len(newOpts) > 0 {
+		if jsonBytes, err := json.MarshalIndent(newOpts, "", "  "); err == nil {
+			a.logger.Debug("effective outbounds configuration for provider [", a.providerTag, "]:\n", string(jsonBytes))
+		}
+	}
 	for i, opt := range newOpts {
 		tag := newTags[i]
 		outbound, exist := a.outbound.Outbound(tag)
@@ -383,6 +389,11 @@ func (a *Adapter) UpdateEndpoints(oldOpts []option.Endpoint, newOpts []option.En
 	}
 	activeTags := a.activeEndpointTags()
 	a.removeUselessEndpoints(newTags)
+	if a.logFactory != nil && a.logFactory.Level() >= log.LevelDebug && len(newOpts) > 0 {
+		if jsonBytes, err := json.MarshalIndent(newOpts, "", "  "); err == nil {
+			a.logger.Debug("effective endpoints configuration for provider [", a.providerTag, "]:\n", string(jsonBytes))
+		}
+	}
 	for i, opt := range newOpts {
 		tag := newTags[i]
 		ep, exist := a.endpoint.Get(tag)
