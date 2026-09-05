@@ -1,5 +1,11 @@
-ANDROID_NDK_HOME ?= /usr/share/android-ndk-r29
-NDK_TOOLCHAIN := $(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/linux-x86_64
+ifeq ($(shell uname -s),Darwin)
+    NDK_HOST_TAG := darwin-x86_64
+    ANDROID_NDK_HOME ?= $(firstword $(wildcard $(HOME)/Library/Android/sdk/ndk/29*))
+else
+    NDK_HOST_TAG := linux-x86_64
+    ANDROID_NDK_HOME ?= /usr/share/android-ndk-r29
+endif
+NDK_TOOLCHAIN := $(ANDROID_NDK_HOME)/toolchains/llvm/prebuilt/$(NDK_HOST_TAG)
 BPF_CLANG ?= $(NDK_TOOLCHAIN)/bin/clang
 BPF_STRIP ?= $(NDK_TOOLCHAIN)/bin/llvm-strip
 BPF_OBJCOPY ?= $(NDK_TOOLCHAIN)/bin/llvm-objcopy
