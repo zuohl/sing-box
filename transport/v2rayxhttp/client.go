@@ -51,6 +51,7 @@ type Client struct {
 	getHTTPClient2  func() (DialerClient, *XmuxClient)
 	xmuxManager     *XmuxManager
 	xmuxManager2    *XmuxManager
+	closeIdle       atomic.Bool
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayXHTTPOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
@@ -227,6 +228,9 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 			if xmuxClient2 != nil && xmuxClient2 != xmuxClient {
 				xmuxClient2.AddOpenUsage(-1)
 			}
+			if c.closeIdle.Load() {
+				c.CloseIdleConnections()
+			}
 		},
 	}
 	var err error
@@ -350,6 +354,10 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) SetKeepIdleConnections(keep bool) {
+	c.closeIdle.Store(!keep)
+	if !keep {
+		c.CloseIdleConnections()
+	}
 }
 
 func (c *Client) CloseIdleConnections() {
@@ -358,16 +366,6 @@ func (c *Client) CloseIdleConnections() {
 	}
 	if c.xmuxManager2 != nil {
 		c.xmuxManager2.CloseIdleConnections()
-	}
-	if c.getHTTPClient != nil {
-		if client, _ := c.getHTTPClient(); client != nil {
-			client.CloseIdleConnections()
-		}
-	}
-	if c.getHTTPClient2 != nil {
-		if client, _ := c.getHTTPClient2(); client != nil {
-			client.CloseIdleConnections()
-		}
 	}
 }
 
