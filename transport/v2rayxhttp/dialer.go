@@ -80,6 +80,7 @@ func (c *DefaultDialerClient) Close() {
 				cc.Close()
 			}
 		}
+		clear(p.conns)
 	case *http3.Transport:
 		transport.Close()
 	default:
@@ -103,6 +104,9 @@ func (c *DefaultDialerClient) IsClosed() bool {
 }
 
 func (c *DefaultDialerClient) OpenStream(ctx context.Context, url string, sessionId string, body io.Reader, uploadOnly bool) (wrc io.ReadCloser, remoteAddr, localAddr net.Addr, err error) {
+	if c.IsClosed() {
+		return nil, nil, nil, net.ErrClosed
+	}
 	type openStreamResult struct {
 		conn       net.Conn
 		remoteAddr net.Addr
@@ -172,6 +176,9 @@ func (c *DefaultDialerClient) OpenStream(ctx context.Context, url string, sessio
 }
 
 func (c *DefaultDialerClient) PostPacket(ctx context.Context, url string, sessionId string, seqStr string, payload buf.MultiBuffer) error {
+	if c.IsClosed() {
+		return net.ErrClosed
+	}
 	method := c.options.GetNormalizedUplinkHTTPMethod()
 	req, err := http.NewRequestWithContext(context.WithoutCancel(ctx), method, url, nil)
 	if err != nil {
