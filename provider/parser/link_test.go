@@ -145,20 +145,20 @@ func TestParseHysteria2LinkOptions(t *testing.T) {
 }
 
 func TestParseVLESSLinkXHTTPAndECH(t *testing.T) {
-	link := "vless://xxx@cdng.senflarelink.de5.net:443?encryption=none&type=xhttp&security=tls&path=%2F%3Fproxyip%3Dproxyip.zuohl.top%26ed%3D2560&host=xh.zuohldev.de5.net&mode=stream-one&extra=%7B+%0A++++%22xPaddingObfsMode%22%3A+true%2C+%0A++++%22xPaddingMethod%22%3A+%22tokenish%22%2C+%0A++++%22xPaddingPlacement%22%3A+%22queryInHeader%22%2C+%0A++++%22xPaddingHeader%22%3A+%22CqBCRk%22%2C+%0A++++%22xPaddingKey%22%3A+%22_CqBCRk%22+%0A++%7D&sni=xh.zuohldev.de5.net&alpn=h2&ech=lido.fi%2Bhttps%3A%2F%2F223.5.5.5%2Fdns-query#cdng"
+	link := "vless://xxx@example.com:443?encryption=none&type=xhttp&security=tls&path=%2F%3Fproxyip%3Dproxyip.example.com%26ed%3D2560&host=xh.example.com&mode=stream-one&extra=%7B+%0A++++%22xPaddingObfsMode%22%3A+true%2C+%0A++++%22xPaddingMethod%22%3A+%22tokenish%22%2C+%0A++++%22xPaddingPlacement%22%3A+%22queryInHeader%22%2C+%0A++++%22xPaddingHeader%22%3A+%22CqBCRk%22%2C+%0A++++%22xPaddingKey%22%3A+%22_CqBCRk%22+%0A++%7D&sni=xh.example.com&alpn=h2&ech=lido.fi%2Bhttps%3A%2F%2F223.5.5.5%2Fdns-query#cdng"
 	outbound, err := ParseSubscriptionLink(link)
 	require.NoError(t, err)
 	require.Equal(t, "cdng", outbound.Tag)
 
 	options := outbound.Options.(*option.VLESSOutboundOptions)
-	require.Equal(t, "cdng.senflarelink.de5.net", options.Server)
+	require.Equal(t, "example.com", options.Server)
 	require.Equal(t, uint16(443), options.ServerPort)
 	require.Equal(t, "xxx", options.UUID)
 
 	// TLS & ECH
 	require.NotNil(t, options.TLS)
 	require.True(t, options.TLS.Enabled)
-	require.Equal(t, "xh.zuohldev.de5.net", options.TLS.ServerName)
+	require.Equal(t, "xh.example.com", options.TLS.ServerName)
 	require.Equal(t, badoption.Listable[string]{"h2"}, options.TLS.ALPN)
 	require.NotNil(t, options.TLS.ECH)
 	require.True(t, options.TLS.ECH.Enabled)
@@ -168,11 +168,24 @@ func TestParseVLESSLinkXHTTPAndECH(t *testing.T) {
 	require.NotNil(t, options.Transport)
 	require.Equal(t, "xhttp", options.Transport.Type)
 	require.Equal(t, "stream-one", options.Transport.XHTTPOptions.Mode)
-	require.Equal(t, "xh.zuohldev.de5.net", options.Transport.XHTTPOptions.Host)
-	require.Equal(t, "/?proxyip=proxyip.zuohl.top&ed=2560", options.Transport.XHTTPOptions.Path)
+	require.Equal(t, "xh.example.com", options.Transport.XHTTPOptions.Host)
+	require.Equal(t, "/?proxyip=proxyip.example.com&ed=2560", options.Transport.XHTTPOptions.Path)
 	require.True(t, options.Transport.XHTTPOptions.XPaddingObfsMode)
 	require.Equal(t, "tokenish", options.Transport.XHTTPOptions.XPaddingMethod)
 	require.Equal(t, "queryInHeader", options.Transport.XHTTPOptions.XPaddingPlacement)
 	require.Equal(t, "CqBCRk", options.Transport.XHTTPOptions.XPaddingHeader)
 	require.Equal(t, "_CqBCRk", options.Transport.XHTTPOptions.XPaddingKey)
+}
+
+func TestParseVLESSLinkWSEarlyData(t *testing.T) {
+	link := "vless://11111111-1111-1111-1111-111111111111@example.com:443?type=ws&security=tls&host=example.com&path=%2F%3Fproxyip%3Dproxyip.example.com%26ed%3D2560#test"
+	outbound, err := ParseSubscriptionLink(link)
+	require.NoError(t, err)
+
+	options := outbound.Options.(*option.VLESSOutboundOptions)
+	require.NotNil(t, options.Transport)
+	require.Equal(t, "ws", options.Transport.Type)
+	require.Equal(t, "/?proxyip=proxyip.example.com", options.Transport.WebsocketOptions.Path)
+	require.Equal(t, uint32(2560), options.Transport.WebsocketOptions.MaxEarlyData)
+	require.Equal(t, "Sec-WebSocket-Protocol", options.Transport.WebsocketOptions.EarlyDataHeaderName)
 }
