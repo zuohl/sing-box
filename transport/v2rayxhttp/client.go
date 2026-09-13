@@ -35,8 +35,9 @@ import (
 )
 
 var (
-	_ adapter.V2RayClientTransport = (*Client)(nil)
-	_ adapter.IdleConnectionKeeper = (*Client)(nil)
+	_ adapter.V2RayClientTransport          = (*Client)(nil)
+	_ adapter.V2RayMultiplexClientTransport = (*Client)(nil)
+	_ adapter.IdleConnectionKeeper          = (*Client)(nil)
 )
 
 type Client struct {
@@ -215,6 +216,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	uploadBaseCtx := context.WithoutCancel(ctx)
 	uploadCtx, cancelUpload := context.WithCancel(uploadBaseCtx)
 	reader, writer := io.Pipe()
+	keepSession := adapter.KeepSessionFromContext(ctx)
 	conn := splitConn{
 		writer: writer,
 		onClose: func() {
@@ -228,7 +230,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 			if xmuxClient2 != nil && xmuxClient2 != xmuxClient {
 				xmuxClient2.AddOpenUsage(-1)
 			}
-			if c.closeIdle.Load() {
+			if c.closeIdle.Load() && !keepSession {
 				c.CloseIdleConnections()
 			}
 		},
@@ -351,6 +353,10 @@ func (c *Client) Close() error {
 		c.xmuxManager2.Close()
 	}
 	return nil
+}
+
+func (c *Client) MultiplexEnabled() bool {
+	return c.options.Mode == "stream-one" || c.options.Xmux != nil
 }
 
 func (c *Client) SetKeepIdleConnections(keep bool) {
