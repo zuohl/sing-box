@@ -97,6 +97,7 @@ def main() -> int:
                     "ebpf-shared",
                     "tun-go",
                     "tun-go-auto-redirect",
+                    "tun-go-auto-redirect-mq",
                     "tun-mixed",
                     "tun-mixed-auto-redirect",
                 )

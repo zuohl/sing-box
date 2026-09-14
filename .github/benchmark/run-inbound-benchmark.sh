@@ -34,7 +34,7 @@ tcp_payload_size=32768
 udp_payload_size=1200
 family=ipv4
 ebpf_policy_prefixes=0
-variants=direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go,tun-go-auto-redirect
+variants=direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go-auto-redirect,tun-go-auto-redirect-mq
 scenarios=all
 profile_seconds=0
 
@@ -156,7 +156,7 @@ fi
 declare -A seen_variants=()
 for variant in "${benchmark_variants[@]}"; do
   case "$variant" in
-    direct|ebpf-local|ebpf-local-tc|ebpf-shared|redirect|tproxy|tun-go|tun-go-auto-redirect|tun-mixed|tun-mixed-auto-redirect) ;;
+    direct|ebpf-local|ebpf-local-tc|ebpf-shared|redirect|tproxy|tun-go|tun-go-auto-redirect|tun-go-auto-redirect-mq|tun-mixed|tun-mixed-auto-redirect) ;;
     *)
       echo "unknown benchmark variant: $variant" >&2
       exit 2
@@ -555,20 +555,25 @@ start_sing_box() {
           -j TPROXY --on-ip "$listen_address" --on-port "$tproxy_port" --tproxy-mark 0x1/0x1
       done
       ;;
-    tun-go|tun-go-auto-redirect|tun-mixed|tun-mixed-auto-redirect)
+    tun-go|tun-go-auto-redirect|tun-go-auto-redirect-mq|tun-mixed|tun-mixed-auto-redirect)
       namespace=$app_namespace
       local auto_redirect=false
-      if [[ $variant == *-auto-redirect ]]; then
+      if [[ $variant == *-auto-redirect* ]]; then
         auto_redirect=true
       fi
       local stack="go"
       if [[ $variant == tun-mixed* ]]; then
         stack="mixed"
       fi
+      local multi_queue=false
+      if [[ $variant == *-mq ]]; then
+        multi_queue=true
+      fi
       inbound=$(jq -n \
         --arg server "$server_address/$tun_route_prefix" \
         --arg tunAddress "$tun_address" \
         --argjson autoRedirect "$auto_redirect" \
+        --argjson multiQueue "$multi_queue" \
         --arg stack "$stack" \
         '{
         type: "tun",
@@ -579,7 +584,7 @@ start_sing_box() {
         auto_route: true,
         auto_redirect: $autoRedirect,
         stack: $stack,
-        multi_queue: true,
+        multi_queue: $multiQueue,
         route_address: [$server],
         exclude_uid: [0]
       }')
@@ -926,6 +931,7 @@ run_variant() {
     tun-mixed) variant_index=8 ;;
     tun-mixed-auto-redirect) variant_index=9 ;;
     ebpf-local-tc) variant_index=10 ;;
+    tun-go-auto-redirect-mq) variant_index=11 ;;
   esac
   server_port=$((20000 + repetition * 10 + variant_index))
   reset_router_rules

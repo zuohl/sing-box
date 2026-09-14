@@ -57,7 +57,7 @@ on:
       variants:
         description: Comma-separated variants
         required: true
-        default: direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go,tun-go-auto-redirect
+        default: direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go-auto-redirect,tun-go-auto-redirect-mq
         type: string
       scenarios:
         description: Comma-separated scenarios or all
