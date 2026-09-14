@@ -26,8 +26,14 @@ def load_results(root: Path):
         return results
     for path in sorted(raw_root.glob("*/*.json")):
         variant = path.parent.name
-        with path.open(encoding="utf-8") as input_file:
-            report = json.load(input_file)
+        try:
+            with path.open(encoding="utf-8") as input_file:
+                content = input_file.read().strip()
+                if not content:
+                    continue
+                report = json.loads(content)
+        except Exception:
+            continue
         for measurement in report.get("results", []):
             key = (variant, measurement["scenario"])
             results.setdefault(key, []).append(measurement)

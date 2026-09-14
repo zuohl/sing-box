@@ -37,6 +37,7 @@ ebpf_policy_prefixes=0
 variants=direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go-auto-redirect,tun-go-auto-redirect-mq
 scenarios=all
 profile_seconds=0
+ruleset_path=""
 
 while (($# > 0)); do
   case "$1" in
@@ -98,6 +99,10 @@ while (($# > 0)); do
       ;;
     --profile-seconds)
       profile_seconds=$2
+      shift 2
+      ;;
+    --ruleset)
+      ruleset_path=$2
       shift 2
       ;;
     -h|--help)
@@ -336,6 +341,15 @@ record_environment() {
 }
 
 prepare_policy_rule_set() {
+  if [[ -n ${ruleset_path:-} && -f $ruleset_path ]]; then
+    policy_rule_sets=$(jq -n --arg path "$ruleset_path" '[{
+      type: "local",
+      tag: "benchmark-policy",
+      format: "binary",
+      path: $path
+    }]')
+    return
+  fi
   if ((ebpf_policy_prefixes == 0)); then
     return
   fi
@@ -451,7 +465,10 @@ write_common_config() {
     log: {level: $log_level, timestamp: true},
     inbounds: [$inbound],
     outbounds: [{type: "direct", tag: "direct"}],
-    route: ({final: "direct"} + if ($rule_sets | length) == 0 then {} else {rule_set: $rule_sets} end)
+    route: ({final: "direct"} + if ($rule_sets | length) == 0 then {} else {
+      rule_set: $rule_sets,
+      rules: [{rule_set: ["benchmark-policy"], outbound: "direct"}]
+    } end)
   } + if $debug_listen == "" then {} else {
     experimental: {debug: {listen: $debug_listen}}
   } end' > "$config"
@@ -595,8 +612,10 @@ start_sing_box() {
       ;;
   esac
 
-  if ((ebpf_policy_prefixes > 0)) && [[ $variant == ebpf-* ]]; then
-    inbound=$(jq -c '. + {bypass_rule_set: ["benchmark-policy"]}' <<< "$inbound")
+  if [[ -n ${ruleset_path:-} && -f $ruleset_path ]] || ((ebpf_policy_prefixes > 0)); then
+    if [[ $variant == ebpf-* ]]; then
+      inbound=$(jq -c '. + {bypass_rule_set: ["benchmark-policy"]}' <<< "$inbound")
+    fi
   fi
   write_common_config "$inbound" "$config" "$debug_listen" "$log_level"
   if [[ $variant == ebpf-local || $variant == ebpf-profile-local ]]; then
@@ -730,6 +749,7 @@ record_idle_metrics() {
   if [[ -z ${sing_box_pid:-} || ! -r /proc/$sing_box_pid/status ]]; then
     return
   fi
+  mkdir -p "$(dirname "$destination")"
   local t0 v0 nv0 t1 v1 nv1
   t0=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat" 2>/dev/null || echo 0)
   v0=$(awk '/^voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status" 2>/dev/null || echo 0)

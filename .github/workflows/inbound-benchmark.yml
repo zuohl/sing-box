@@ -118,6 +118,8 @@ jobs:
           go build -trimpath \
             -o build/inbound-benchmark/interception-bench \
             ./cmd/internal/interception_bench
+          curl -fsSL -o build/inbound-benchmark/cn.srs \
+            https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs
 
       - name: Run benchmark
         id: benchmark
@@ -143,6 +145,7 @@ jobs:
             --debug-sing-box "$PWD/build/inbound-benchmark/sing-box-ebpf-debug" \
             --benchmark "$PWD/build/inbound-benchmark/interception-bench" \
             --output "$PWD/build/inbound-benchmark/results" \
+            --ruleset "$PWD/build/inbound-benchmark/cn.srs" \
             --duration "$BENCHMARK_DURATION" \
             --warmup "$BENCHMARK_WARMUP" \
             --repetitions "$BENCHMARK_REPETITIONS" \
