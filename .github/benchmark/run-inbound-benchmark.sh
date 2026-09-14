@@ -479,9 +479,10 @@ start_sing_box() {
       inbound=$(jq -n --arg cgroup "$cgroup_path" --argjson ipv6 "$local_ipv6" '{
         type: "ebpf",
         tag: "benchmark-in",
-        mode: "local",
         network: ["tcp", "udp"],
         local: {
+          enabled: true,
+          data_plane: "cgroup",
           dns_mode: "off",
           cgroup_path: $cgroup,
           ipv6: $ipv6,
@@ -498,9 +499,13 @@ start_sing_box() {
       inbound=$(jq -n --arg interface "$router_app_interface" --argjson ipv6 "$shared_ipv6" '{
         type: "ebpf",
         tag: "benchmark-in",
-        mode: "shared",
         network: ["tcp", "udp"],
+        local: {
+          enabled: false
+        },
         shared: {
+          enabled: true,
+          data_plane: "packet_rewrite",
           dns_mode: "off",
           interface: [$interface],
           ipv6: $ipv6,
