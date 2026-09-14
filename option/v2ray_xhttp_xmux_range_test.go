@@ -91,3 +91,36 @@ func TestXmuxOptionsRoundTrip(t *testing.T) {
 		t.Fatalf("max_connections = %q, want it to stay unset", reloaded.MaxConnections)
 	}
 }
+
+// TestV2RayXHTTPOptionsRangeForms verifies that all range fields on V2RayXHTTPOptions
+// correctly unmarshal from strings ("100-1000"), bare numbers (0, 1000000), and arrays ([100, 1000]).
+func TestV2RayXHTTPOptionsRangeForms(t *testing.T) {
+	const input = `{
+		"type": "xhttp",
+		"mode": "stream-one",
+		"x_padding_bytes": 0,
+		"sc_max_each_post_bytes": 1000000,
+		"sc_min_posts_interval_ms": 30,
+		"uplink_chunk_size": [2048, 3072],
+		"session_length": "16-32"
+	}`
+	var options V2RayXHTTPOptions
+	if err := json.Unmarshal([]byte(input), &options); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if options.XPaddingBytes != "0" {
+		t.Fatalf("x_padding_bytes = %q, want \"0\"", options.XPaddingBytes)
+	}
+	if options.ScMaxEachPostBytes != "1000000" {
+		t.Fatalf("sc_max_each_post_bytes = %q, want \"1000000\"", options.ScMaxEachPostBytes)
+	}
+	if options.ScMinPostsIntervalMs != "30" {
+		t.Fatalf("sc_min_posts_interval_ms = %q, want \"30\"", options.ScMinPostsIntervalMs)
+	}
+	if options.UplinkChunkSize != "2048-3072" {
+		t.Fatalf("uplink_chunk_size = %q, want \"2048-3072\"", options.UplinkChunkSize)
+	}
+	if options.SessionLength != "16-32" {
+		t.Fatalf("session_length = %q, want \"16-32\"", options.SessionLength)
+	}
+}

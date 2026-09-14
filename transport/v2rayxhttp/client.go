@@ -96,7 +96,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		return nil, E.New("v2ray-xhttp: unknown mode: ", mode)
 	}
 
-	paddingRange, err := parseRangeOr(options.XPaddingBytes, "x_padding_bytes", intRange{100, 1000})
+	paddingRange, err := parseRangeOr(string(options.XPaddingBytes), "x_padding_bytes", intRange{100, 1000})
 	if err != nil {
 		return nil, err
 	}
@@ -107,18 +107,18 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		SeqPlacement:         options.SeqPlacement,
 		SeqKey:               options.SeqKey,
 		SessionTable:         options.SessionTable,
-		SessionLength:        options.SessionLength,
+		SessionLength:        string(options.SessionLength),
 		UplinkDataPlacement:  options.UplinkDataPlacement,
 		UplinkDataKey:        options.UplinkDataKey,
-		UplinkChunkSize:      options.UplinkChunkSize,
+		UplinkChunkSize:      string(options.UplinkChunkSize),
 		UplinkHTTPMethod:     options.UplinkHTTPMethod,
 		XPaddingObfsMode:     options.XPaddingObfsMode,
 		XPaddingKey:          options.XPaddingKey,
 		XPaddingHeader:       options.XPaddingHeader,
 		XPaddingPlacement:    options.XPaddingPlacement,
 		XPaddingMethod:       options.XPaddingMethod,
-		ScMaxEachPostBytes:   options.ScMaxEachPostBytes,
-		ScMinPostsIntervalMs: options.ScMinPostsIntervalMs,
+		ScMaxEachPostBytes:   string(options.ScMaxEachPostBytes),
+		ScMinPostsIntervalMs: string(options.ScMinPostsIntervalMs),
 	}, mode)
 	if err != nil {
 		return nil, err

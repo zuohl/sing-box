@@ -33,9 +33,9 @@ type V2RayXHTTPOptions struct {
 	// Headers are extra request headers sent on every XHTTP request.
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
 	// XPaddingBytes is the inclusive byte-length range of the padding value
-	// ("min-max", e.g. "100-1000", or a single integer). Empty defaults to
-	// "100-1000".
-	XPaddingBytes string `json:"x_padding_bytes,omitempty"`
+	// ("min-max", e.g. "100-1000", a single integer, or [min, max] array).
+	// Empty defaults to "100-1000".
+	XPaddingBytes V2RayXHTTPRange `json:"x_padding_bytes,omitempty"`
 	// Xmux configures HTTP connection reuse (Xray "XMUX"). A nil value still
 	// enables XMUX with Xray-compatible defaults — matching Xray-core and
 	// sing-box-extended, where the pool is always on. See SPECS/TASKS/059.
@@ -77,7 +77,7 @@ type V2RayXHTTPOptions struct {
 	// or a single integer. Only used together with SessionTable. The floor must be
 	// above 0 and the id space (len(table)^min) must exceed 2^31 so independent
 	// clients do not collide onto one server-side session.
-	SessionLength string `json:"session_length,omitempty"`
+	SessionLength V2RayXHTTPRange `json:"session_length,omitempty"`
 
 	// ---- uplink data (obfs / tuning) ----------------------------------------
 
@@ -91,7 +91,7 @@ type V2RayXHTTPOptions struct {
 	// UplinkChunkSize is the "min-max" range (in base64 characters) of each
 	// header/cookie payload chunk. Empty selects a placement-dependent default
 	// (cookie 2048-3072, header 3000-4000, otherwise sc_max_each_post_bytes).
-	UplinkChunkSize string `json:"uplink_chunk_size,omitempty"`
+	UplinkChunkSize V2RayXHTTPRange `json:"uplink_chunk_size,omitempty"`
 	// UplinkHTTPMethod is the HTTP method for upload requests (download is always
 	// GET). Empty defaults to "POST"; the value is upper-cased. "GET" is only
 	// valid in packet-up mode.
@@ -121,11 +121,11 @@ type V2RayXHTTPOptions struct {
 	// ScMaxEachPostBytes is the "min-max" range bounding the size of a single
 	// packet-up upload POST (the split threshold). Empty defaults to
 	// "1000000-1000000".
-	ScMaxEachPostBytes string `json:"sc_max_each_post_bytes,omitempty"`
+	ScMaxEachPostBytes V2RayXHTTPRange `json:"sc_max_each_post_bytes,omitempty"`
 	// ScMinPostsIntervalMs is the "min-max" range (milliseconds) of the minimum
 	// delay between successive packet-up upload POSTs (anti-burst). Empty defaults
 	// to "30-30".
-	ScMinPostsIntervalMs string `json:"sc_min_posts_interval_ms,omitempty"`
+	ScMinPostsIntervalMs V2RayXHTTPRange `json:"sc_min_posts_interval_ms,omitempty"`
 
 	// ---- legacy / accepted-but-ignored -------------------------------------
 
@@ -151,7 +151,7 @@ type V2RayXHTTPOptions struct {
 	// the stream-up response). The client sets no such interval and does not strip
 	// server-injected keepalive padding from the stream-up download — verify against
 	// the target server if it emits any.
-	ScStreamUpServerSecs string `json:"sc_stream_up_server_secs,omitempty"`
+	ScStreamUpServerSecs V2RayXHTTPRange `json:"sc_stream_up_server_secs,omitempty"`
 }
 
 // V2RayXHTTPXmuxOptions configures XHTTP connection reuse ("XMUX"): how many
