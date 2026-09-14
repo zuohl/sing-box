@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing-box/transport/v2rayhttpupgrade"
 	"github.com/sagernet/sing-box/transport/v2raywebsocket"
-	"github.com/sagernet/sing-box/transport/v2rayxhttp"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -40,8 +39,6 @@ func NewServerTransport(ctx context.Context, logger logger.ContextLogger, option
 		return NewGRPCServer(ctx, logger, options.GRPCOptions, tlsConfig, handler)
 	case C.V2RayTransportTypeHTTPUpgrade:
 		return v2rayhttpupgrade.NewServer(ctx, logger, options.HTTPUpgradeOptions, tlsConfig, handler)
-	case C.V2RayTransportTypeXHTTP:
-		return xhttp.NewServer(ctx, logger, options.XHTTPOptions, tlsConfig, handler)
 	default:
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
@@ -51,23 +48,9 @@ func NewClientTransport(ctx context.Context, dialer N.Dialer, serverAddr M.Socks
 	if options.Type == "" {
 		return nil, nil
 	}
-	switch options.Type {
-	case C.V2RayTransportTypeHTTP:
-		return v2rayhttp.NewClient(ctx, dialer, serverAddr, options.HTTPOptions, tlsConfig)
-	case C.V2RayTransportTypeGRPC:
-		return NewGRPCClient(ctx, dialer, serverAddr, options.GRPCOptions, tlsConfig)
-	case C.V2RayTransportTypeWebsocket:
-		return v2raywebsocket.NewClient(ctx, dialer, serverAddr, options.WebsocketOptions, tlsConfig)
-	case C.V2RayTransportTypeQUIC:
-		if tlsConfig == nil {
-			return nil, C.ErrTLSRequired
-		}
-		return NewQUICClient(ctx, dialer, serverAddr, options.QUICOptions, tlsConfig)
-	case C.V2RayTransportTypeHTTPUpgrade:
-		return v2rayhttpupgrade.NewClient(ctx, dialer, serverAddr, options.HTTPUpgradeOptions, tlsConfig)
-	case C.V2RayTransportTypeXHTTP:
-		return xhttp.NewClient(ctx, dialer, serverAddr, options.XHTTPOptions, tlsConfig)
-	default:
+	constructor, loaded := lookupClientTransport(options.Type)
+	if !loaded {
 		return nil, E.New("unknown transport type: " + options.Type)
 	}
+	return constructor(ctx, dialer, serverAddr, options, tlsConfig)
 }
