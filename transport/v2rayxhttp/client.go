@@ -29,7 +29,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/log"
@@ -133,21 +136,66 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	// and decides which one carries a given stream; each has its own dialer, so
 	// separate transports mean separate TCP+TLS connections (SPECS/TASKS/059).
 	var (
-		scheme       string
-		newTransport func() *http2.Transport
+		scheme  string
+		newConn func() xmuxConn
 	)
-	if tlsConfig == nil {
+	isH3 := !tlsConfigIsReality(tlsConfig) && tlsConfig != nil && len(tlsConfig.NextProtos()) > 0 && tlsConfig.NextProtos()[0] == "h3"
+	if isH3 {
+		scheme = "https"
+		stdTLSConfig, err := tlsConfig.STDConfig()
+		if err != nil {
+			return nil, err
+		}
+		var handshakeTimeout time.Duration
+		if tlsConfig != nil {
+			handshakeTimeout = tlsConfig.HandshakeTimeout()
+		}
+		newConn = func() xmuxConn {
+			quicConfig := &quic.Config{
+				KeepAlivePeriod:    xmuxConfig.keepAlivePeriod,
+				MaxIncomingStreams: -1,
+			}
+			if handshakeTimeout > 0 {
+				quicConfig.HandshakeIdleTimeout = handshakeTimeout
+			}
+			h3Transport := &http3.Transport{
+				TLSClientConfig: stdTLSConfig,
+				QUICConfig:      quicConfig,
+				Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
+					if tlsCfg == nil {
+						tlsCfg = stdTLSConfig
+					}
+					conn, dialErr := dialer.DialContext(ctx, N.NetworkUDP, serverAddr)
+					if dialErr != nil {
+						return nil, dialErr
+					}
+					quicConn, dialErr := quic.DialEarlyConn(ctx, conn, tlsCfg, cfg)
+					if dialErr != nil {
+						conn.Close()
+						return nil, dialErr
+					}
+					go func() {
+						<-quicConn.Context().Done()
+						conn.Close()
+					}()
+					return quicConn, nil
+				},
+			}
+			return &http3XmuxConn{transport: h3Transport}
+		}
+	} else if tlsConfig == nil {
 		scheme = "http"
 		// Plaintext h2c: speak HTTP/2 over a cleartext TCP conn so the same
 		// streaming request/response body machinery works without TLS.
-		newTransport = func() *http2.Transport {
-			return &http2.Transport{
+		newConn = func() xmuxConn {
+			t := &http2.Transport{
 				AllowHTTP:       true,
 				ReadIdleTimeout: xmuxConfig.keepAlivePeriod,
 				DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.STDConfig) (net.Conn, error) {
 					return dialer.DialContext(ctx, N.NetworkTCP, M.ParseSocksaddr(addr))
 				},
 			}
+			return &http2XmuxConn{transport: t}
 		}
 	} else {
 		scheme = "https"
@@ -155,13 +203,14 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 			tlsConfig.SetNextProtos([]string{http2.NextProtoTLS})
 		}
 		tlsDialer := tls.NewDialer(dialer, tlsConfig)
-		newTransport = func() *http2.Transport {
-			return &http2.Transport{
+		newConn = func() xmuxConn {
+			t := &http2.Transport{
 				ReadIdleTimeout: xmuxConfig.keepAlivePeriod,
 				DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.STDConfig) (net.Conn, error) {
 					return tlsDialer.DialTLSContext(ctx, M.ParseSocksaddr(addr))
 				},
 			}
+			return &http2XmuxConn{transport: t}
 		}
 	}
 
@@ -191,9 +240,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		headers[key] = value
 	}
 
-	xmux := newXmuxManager(xmuxConfig, func() xmuxConn {
-		return &http2XmuxConn{transport: newTransport()}
-	})
+	xmux := newXmuxManager(xmuxConfig, newConn)
 	// The pool's transitions (a connection opened, a connection retired and why)
 	// are what is worth observing about XMUX — the pool size itself follows from
 	// the config. Debug level, so it costs nothing unless someone is looking.

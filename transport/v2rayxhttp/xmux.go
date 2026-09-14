@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -128,6 +129,32 @@ func (c *http2XmuxConn) roundTripper() http.RoundTripper {
 }
 
 func (c *http2XmuxConn) CloseIdleConnections() {
+	c.transport.CloseIdleConnections()
+}
+
+// http3XmuxConn adapts an *http3.Transport to the pool's resource interface.
+type http3XmuxConn struct {
+	transport *http3.Transport
+	closed    atomic.Bool
+}
+
+func (c *http3XmuxConn) Close() {
+	if c.closed.Swap(true) {
+		return
+	}
+	c.transport.CloseIdleConnections()
+	_ = c.transport.Close()
+}
+
+func (c *http3XmuxConn) IsClosed() bool {
+	return c.closed.Load()
+}
+
+func (c *http3XmuxConn) roundTripper() http.RoundTripper {
+	return c.transport
+}
+
+func (c *http3XmuxConn) CloseIdleConnections() {
 	c.transport.CloseIdleConnections()
 }
 
