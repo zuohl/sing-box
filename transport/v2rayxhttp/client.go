@@ -70,6 +70,7 @@ type Client struct {
 	scheme       string
 	host         string
 	path         string
+	rawQuery     string
 	mode         string
 	headers      http.Header
 	paddingRange intRange
@@ -230,9 +231,14 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	// The one place the slash must go is stream-one's bare path (empty sessionId),
 	// where the Xray server keys the bidirectional branch on an exact bare path —
 	// that trim happens locally in applyMeta, not globally here (lx: SPEC 002).
-	path := options.Path
+	pathAndQuery := strings.SplitN(options.Path, "?", 2)
+	path := pathAndQuery[0]
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
+	}
+	var rawQuery string
+	if len(pathAndQuery) > 1 {
+		rawQuery = pathAndQuery[1]
 	}
 
 	headers := make(http.Header)
@@ -260,6 +266,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		scheme:         scheme,
 		host:           host,
 		path:           path,
+		rawQuery:       rawQuery,
 		mode:           mode,
 		headers:        headers,
 		paddingRange:   paddingRange,
@@ -351,6 +358,7 @@ func (c *Client) baseURL() (*url.URL, error) {
 	if !strings.HasPrefix(u.Path, "/") {
 		u.Path = "/" + u.Path
 	}
+	u.RawQuery = c.rawQuery
 	return u, nil
 }
 

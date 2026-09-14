@@ -32,3 +32,35 @@ func TestNewClientHTTP3(t *testing.T) {
 		t.Fatalf("expected *http3XmuxConn, got %T", conn)
 	}
 }
+
+func TestURLQueryInPath(t *testing.T) {
+	opts := option.V2RayXHTTPOptions{
+		Mode: "stream-one",
+		Path: "/?proxyip=proxyip.zuohl.top&ed=2560",
+	}
+	tlsConfig, err := tls.NewClient(context.Background(), nil, "example.com", option.OutboundTLSOptions{
+		Enabled:    true,
+		ServerName: "example.com",
+		ALPN:       []string{"h3"},
+	})
+	if err != nil {
+		t.Fatalf("tls: %v", err)
+	}
+	c, err := NewClient(context.Background(), nil, M.ParseSocksaddr("127.0.0.1:443"), opts, tlsConfig)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	req, err := c.(*Client).newRequest(context.Background(), "POST", "", "", nil)
+	if err != nil {
+		t.Fatalf("newRequest: %v", err)
+	}
+	if req.URL.Path != "/" {
+		t.Fatalf("want Path '/', got %q", req.URL.Path)
+	}
+	if req.URL.RawQuery != "proxyip=proxyip.zuohl.top&ed=2560" {
+		t.Fatalf("want RawQuery 'proxyip=proxyip.zuohl.top&ed=2560', got %q", req.URL.RawQuery)
+	}
+	if req.URL.RequestURI() != "/?proxyip=proxyip.zuohl.top&ed=2560" {
+		t.Fatalf("want RequestURI '/?proxyip=proxyip.zuohl.top&ed=2560', got %q", req.URL.RequestURI())
+	}
+}
