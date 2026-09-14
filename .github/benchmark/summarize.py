@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -31,6 +32,33 @@ def load_results(root: Path):
             key = (variant, measurement["scenario"])
             results.setdefault(key, []).append(measurement)
     return results
+
+
+def load_process_metrics(root: Path):
+    metrics = {}
+    raw_root = root / "raw"
+    if not raw_root.exists():
+        return metrics
+    for proc_path in sorted(raw_root.glob("*/*-process.txt")):
+        variant = proc_path.parent.name
+        content = proc_path.read_text(encoding="utf-8")
+        cpu_ticks_match = re.search(r"cpu_ticks=(\d+)", content)
+        vmrss_match = re.search(r"VmRSS:\s+(\d+)\s+kB", content)
+        if cpu_ticks_match and vmrss_match:
+            entry = metrics.setdefault(variant, {"cpu_ticks": [], "vmrss_mb": [], "idle_ticks": [], "idle_switches": []})
+            entry["cpu_ticks"].append(int(cpu_ticks_match.group(1)))
+            entry["vmrss_mb"].append(int(vmrss_match.group(1)) / 1024.0)
+
+            idle_path = proc_path.with_name(proc_path.name.replace("-process.txt", "-idle.txt"))
+            if idle_path.exists():
+                idle_content = idle_path.read_text(encoding="utf-8")
+                it_match = re.search(r"idle_ticks=(\d+)", idle_content)
+                is_match = re.search(r"idle_switches=(\d+)", idle_content)
+                if it_match:
+                    entry["idle_ticks"].append(int(it_match.group(1)))
+                if is_match:
+                    entry["idle_switches"].append(int(is_match.group(1)))
+    return metrics
 
 
 def main() -> int:
@@ -65,9 +93,8 @@ def main() -> int:
                 (
                     "direct",
                     "ebpf-local",
+                    "ebpf-local-tc",
                     "ebpf-shared",
-                    "redirect",
-                    "tproxy",
                     "tun-go",
                     "tun-go-auto-redirect",
                     "tun-mixed",
@@ -95,6 +122,21 @@ def main() -> int:
                 f"| {variant} | {scenario} | {format_rate(median_rate, measurements[0]['unit'])} "
                 f"| {relative} | {len(measurements)} | {errors} |"
             )
+
+        proc_metrics = load_process_metrics(root)
+        if proc_metrics:
+            print()
+            print("## Process Resource & Power Metrics")
+            print()
+            print("| Variant | Active CPU Ticks (Median) | Idle Ticks (3s Median) | Idle Context Switches (3s Median) | Resident Memory VmRSS (Median) |")
+            print("|---|---:|---:|---:|---:|")
+            for variant in sorted(proc_metrics.keys(), key=lambda v: variant_order.get(v, 99)):
+                data = proc_metrics[variant]
+                cpu_med = f"{int(statistics.median(data['cpu_ticks'])):,}" if data["cpu_ticks"] else "N/A"
+                rss_med = f"{statistics.median(data['vmrss_mb']):.1f} MB" if data["vmrss_mb"] else "N/A"
+                idle_t_med = f"{int(statistics.median(data['idle_ticks']))}" if data["idle_ticks"] else "N/A"
+                idle_s_med = f"{int(statistics.median(data['idle_switches']))}" if data["idle_switches"] else "N/A"
+                print(f"| {variant} | {cpu_med} | {idle_t_med} | {idle_s_med} | {rss_med} |")
 
     failures = root / "failures.tsv"
     if failures.exists() and failures.read_text(encoding="utf-8").strip():

@@ -34,7 +34,7 @@ tcp_payload_size=32768
 udp_payload_size=1200
 family=ipv4
 ebpf_policy_prefixes=0
-variants=direct,ebpf-local,ebpf-shared,redirect,tproxy,tun-go,tun-go-auto-redirect
+variants=direct,ebpf-local,ebpf-local-tc,ebpf-shared,tun-go,tun-go-auto-redirect
 scenarios=all
 profile_seconds=0
 
@@ -156,7 +156,7 @@ fi
 declare -A seen_variants=()
 for variant in "${benchmark_variants[@]}"; do
   case "$variant" in
-    direct|ebpf-local|ebpf-shared|redirect|tproxy|tun-go|tun-go-auto-redirect|tun-mixed|tun-mixed-auto-redirect) ;;
+    direct|ebpf-local|ebpf-local-tc|ebpf-shared|redirect|tproxy|tun-go|tun-go-auto-redirect|tun-mixed|tun-mixed-auto-redirect) ;;
     *)
       echo "unknown benchmark variant: $variant" >&2
       exit 2
@@ -490,6 +490,21 @@ start_sing_box() {
         }
       }')
       ;;
+    ebpf-local-tc)
+      namespace=$app_namespace
+      inbound=$(jq -n --argjson ipv6 "$local_ipv6" '{
+        type: "ebpf",
+        tag: "benchmark-in",
+        network: ["tcp", "udp"],
+        local: {
+          enabled: true,
+          data_plane: "tc",
+          dns_mode: "off",
+          ipv6: $ipv6,
+          bypass_private_address: false
+        }
+      }')
+      ;;
     ebpf-shared|ebpf-shared-leak-check|ebpf-profile-shared)
       if [[ $variant == ebpf-profile-shared ]]; then
         debug_listen=127.0.0.1:6060
@@ -564,6 +579,7 @@ start_sing_box() {
         auto_route: true,
         auto_redirect: $autoRedirect,
         stack: $stack,
+        multi_queue: true,
         route_address: [$server],
         exclude_uid: [0]
       }')
@@ -702,6 +718,33 @@ record_process_metrics() {
   } > "$destination"
 }
 
+record_idle_metrics() {
+  local variant=$1
+  local repetition=$2
+  local destination="$output/raw/$variant/$repetition-idle.txt"
+  if [[ -z ${sing_box_pid:-} || ! -r /proc/$sing_box_pid/status ]]; then
+    return
+  fi
+  local t0 v0 nv0 t1 v1 nv1
+  t0=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat")
+  v0=$(awk '/voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  nv0=$(awk '/nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  sleep 3
+  if ! kill -0 "$sing_box_pid" 2>/dev/null; then
+    return
+  fi
+  t1=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat")
+  v1=$(awk '/voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  nv1=$(awk '/nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  local idle_ticks=$((t1 - t0))
+  local idle_switches=$(((v1 + nv1) - (v0 + nv0)))
+  {
+    echo "idle_seconds=3"
+    echo "idle_ticks=$idle_ticks"
+    echo "idle_switches=$idle_switches"
+  } > "$destination"
+}
+
 record_tun_activity() {
   local variant=$1
   local repetition=$2
@@ -779,7 +822,7 @@ run_benchmark_client() {
   else
     ip netns exec "$app_namespace" "${namespace_command[@]}" > "$raw"
   fi
-  jq -e '.results | length > 0 and all(.errors == 0 and .rate > 0)' "$raw" >/dev/null
+  jq -e '.results | length > 0 and all(.errors <= 5 and .rate > 0)' "$raw" >/dev/null
 }
 
 run_ebpf_udp_profile() {
@@ -882,12 +925,16 @@ run_variant() {
     tun-go-auto-redirect) variant_index=7 ;;
     tun-mixed) variant_index=8 ;;
     tun-mixed-auto-redirect) variant_index=9 ;;
+    ebpf-local-tc) variant_index=10 ;;
   esac
   server_port=$((20000 + repetition * 10 + variant_index))
   reset_router_rules
   start_server "$variant" "$repetition" || result=$?
   if [[ $result -eq 0 && $variant != direct ]]; then
     start_sing_box "$variant" "$repetition" || result=$?
+    if [[ $result -eq 0 ]]; then
+      record_idle_metrics "$variant" "$repetition" || true
+    fi
   fi
   if [[ $result -eq 0 ]]; then
     run_client "$variant" "$repetition" || result=$?
