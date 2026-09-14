@@ -726,16 +726,16 @@ record_idle_metrics() {
     return
   fi
   local t0 v0 nv0 t1 v1 nv1
-  t0=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat")
-  v0=$(awk '/voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
-  nv0=$(awk '/nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  t0=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat" 2>/dev/null || echo 0)
+  v0=$(awk '/^voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status" 2>/dev/null || echo 0)
+  nv0=$(awk '/^nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status" 2>/dev/null || echo 0)
   sleep 3
   if ! kill -0 "$sing_box_pid" 2>/dev/null; then
     return
   fi
-  t1=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat")
-  v1=$(awk '/voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
-  nv1=$(awk '/nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status")
+  t1=$(awk '{ print $14 + $15 }' "/proc/$sing_box_pid/stat" 2>/dev/null || echo 0)
+  v1=$(awk '/^voluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status" 2>/dev/null || echo 0)
+  nv1=$(awk '/^nonvoluntary_ctxt_switches:/ { print $2 }' "/proc/$sing_box_pid/status" 2>/dev/null || echo 0)
   local idle_ticks=$((t1 - t0))
   local idle_switches=$(((v1 + nv1) - (v0 + nv0)))
   {
