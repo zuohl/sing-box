@@ -16,6 +16,7 @@ Available transports:
 * QUIC
 * gRPC
 * HTTPUpgrade
+* XHTTP
 
 !!! warning "Difference from v2ray-core"
 
@@ -227,3 +228,88 @@ The server will verify.
 Extra headers of HTTP request.
 
 The server will write in response if not empty.
+
+### XHTTP
+
+XHTTP (SplitHTTP) is a transport protocol that splits full-duplex bidirectional streams into independent HTTP upload requests and long-polling download streams, with native support for multiplexing, CDN caching bypass, and traffic obfuscation.
+
+```json
+{
+  "type": "xhttp",
+  "mode": "auto",
+  "host": "example.com",
+  "path": "/xhttp-path",
+  "headers": {},
+  "x_padding_bytes": "100-1000",
+  "sc_max_each_post_bytes": 1000000,
+  "sc_min_posts_interval_ms": 30,
+  "xmux": {
+    "max_connections": 3,
+    "c_max_reuse_times": "0-0",
+    "h_max_request_times": "600-900",
+    "h_max_reusable_secs": "1800-3000"
+  }
+}
+```
+
+#### mode
+
+Working mode.
+
+Available options:
+
+* `auto`: Automatic negotiation and stream/packet adaptive mode (default).
+* `packet-up`: Packet upload mode (chunked post requests, suitable for CDNs without chunked streaming upload support).
+* `stream-up`: Streaming upload mode (continuous chunked upload over persistent connection).
+* `stream-one`: Full-duplex single stream mode (similar to HTTP/2 bidirectional streaming).
+
+#### host
+
+Host header domain for HTTP requests.
+
+#### path
+
+Base path for HTTP requests.
+
+#### headers
+
+Extra HTTP request headers as key-value pairs.
+
+#### x_padding_bytes
+
+Padding byte range for obfuscation. For example `"100-1000"` or a single integer.
+
+#### sc_max_each_post_bytes
+
+Maximum payload bytes per POST request in chunked upload (`packet-up` / `auto`). Defaults to `1000000` (~1MB).
+
+#### sc_min_posts_interval_ms
+
+Minimum interval in milliseconds between successive upload chunk requests. Defaults to `30`.
+
+#### xmux
+
+Connection multiplexing and connection lifecycle options:
+
+* `max_connections`: Range of maximum persistent connections (e.g. `3` or `"1-4"`).
+* `max_concurrency`: Range of maximum concurrent streams (mutually exclusive with `max_connections`).
+* `c_max_reuse_times`: Range of underlying TCP connection reuse limit.
+* `h_max_request_times`: Range of maximum HTTP request reuse count (default `"600-900"`).
+* `h_max_reusable_secs`: Maximum reuse lifetime in seconds (default `"1800-3000"`).
+
+#### download
+
+Advanced independent download channel options (for uplink/downlink splitting or dedicated CDN acceleration):
+
+```json
+{
+  "download": {
+    "server": "download.example.com",
+    "server_port": 443,
+    "tls": {
+      "enabled": true,
+      "server_name": "download.example.com"
+    }
+  }
+}
+```

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/stretchr/testify/require"
 )
@@ -141,4 +142,37 @@ func TestParseHysteria2LinkOptions(t *testing.T) {
 	require.Equal(t, []string{"40000:50000"}, []string(options.ServerPorts))
 	require.Equal(t, "example.com", options.TLS.ServerName)
 	require.Equal(t, "AA:BB", options.TLS.CertificatePinSHA256)
+}
+
+func TestParseVLESSLinkXHTTPAndECH(t *testing.T) {
+	link := "vless://xxx@cdng.senflarelink.de5.net:443?encryption=none&type=xhttp&security=tls&path=%2F%3Fproxyip%3Dproxyip.zuohl.top%26ed%3D2560&host=xh.zuohldev.de5.net&mode=stream-one&extra=%7B+%0A++++%22xPaddingObfsMode%22%3A+true%2C+%0A++++%22xPaddingMethod%22%3A+%22tokenish%22%2C+%0A++++%22xPaddingPlacement%22%3A+%22queryInHeader%22%2C+%0A++++%22xPaddingHeader%22%3A+%22CqBCRk%22%2C+%0A++++%22xPaddingKey%22%3A+%22_CqBCRk%22+%0A++%7D&sni=xh.zuohldev.de5.net&alpn=h2&ech=lido.fi%2Bhttps%3A%2F%2F223.5.5.5%2Fdns-query#cdng"
+	outbound, err := ParseSubscriptionLink(link)
+	require.NoError(t, err)
+	require.Equal(t, "cdng", outbound.Tag)
+
+	options := outbound.Options.(*option.VLESSOutboundOptions)
+	require.Equal(t, "cdng.senflarelink.de5.net", options.Server)
+	require.Equal(t, uint16(443), options.ServerPort)
+	require.Equal(t, "xxx", options.UUID)
+
+	// TLS & ECH
+	require.NotNil(t, options.TLS)
+	require.True(t, options.TLS.Enabled)
+	require.Equal(t, "xh.zuohldev.de5.net", options.TLS.ServerName)
+	require.Equal(t, badoption.Listable[string]{"h2"}, options.TLS.ALPN)
+	require.NotNil(t, options.TLS.ECH)
+	require.True(t, options.TLS.ECH.Enabled)
+	require.Equal(t, "lido.fi", options.TLS.ECH.QueryServerName)
+
+	// XHTTP Transport
+	require.NotNil(t, options.Transport)
+	require.Equal(t, "xhttp", options.Transport.Type)
+	require.Equal(t, "stream-one", options.Transport.XHTTPOptions.Mode)
+	require.Equal(t, "xh.zuohldev.de5.net", options.Transport.XHTTPOptions.Host)
+	require.Equal(t, "/?proxyip=proxyip.zuohl.top&ed=2560", options.Transport.XHTTPOptions.Path)
+	require.True(t, options.Transport.XHTTPOptions.XPaddingObfsMode)
+	require.Equal(t, "tokenish", options.Transport.XHTTPOptions.XPaddingMethod)
+	require.Equal(t, "queryInHeader", options.Transport.XHTTPOptions.XPaddingPlacement)
+	require.Equal(t, "CqBCRk", options.Transport.XHTTPOptions.XPaddingHeader)
+	require.Equal(t, "_CqBCRk", options.Transport.XHTTPOptions.XPaddingKey)
 }
