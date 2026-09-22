@@ -124,7 +124,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options
 	enforceInterfaceMonitor := options.AutoDetectInterface
 	if !usePlatformDefaultInterfaceMonitor {
 		networkMonitor, err := tun.NewNetworkUpdateMonitor(logger)
-		if !((err != nil && !enforceInterfaceMonitor) || errors.Is(err, os.ErrInvalid)) {
+		if !((err != nil && !enforceInterfaceMonitor) || errors.Is(err, os.ErrInvalid) || (C.IsAndroid && strings.Contains(err.Error(), "banned by Google"))) {
 			if err != nil {
 				return nil, E.Cause(err, "create network monitor")
 			}
@@ -139,6 +139,8 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options
 				return nil, E.New("auto_detect_interface unsupported on current platform")
 			}
 			nm.interfaceMonitor = interfaceMonitor
+		} else if err != nil {
+			logger.Warn("network monitor is not supported on this platform: ", err)
 		}
 	} else {
 		nm.interfaceMonitor = nm.platformInterface.CreateDefaultInterfaceMonitor(logger)
