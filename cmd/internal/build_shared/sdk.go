@@ -34,6 +34,15 @@ func FindSDK() {
 		}
 	}
 	if androidSDKPath == "" {
+		for _, path := range searchPath {
+			path = os.ExpandEnv(path)
+			if rw.IsDir(filepath.Join(path, "platforms")) {
+				androidSDKPath = path
+				break
+			}
+		}
+	}
+	if androidSDKPath == "" {
 		log.Fatal("android SDK not found")
 	}
 	if !findNDK() {

@@ -20,6 +20,7 @@ var (
 	debugEnabled bool
 	target       string
 	platform     string
+	skipLegacy   bool
 	// withTailscale bool
 )
 
@@ -27,6 +28,7 @@ func init() {
 	flag.BoolVar(&debugEnabled, "debug", false, "enable debug")
 	flag.StringVar(&target, "target", "android", "target platform")
 	flag.StringVar(&platform, "platform", "", "specify platform")
+	flag.BoolVar(&skipLegacy, "skip-legacy", false, "skip building legacy android variant")
 	// flag.BoolVar(&withTailscale, "with-tailscale", false, "build tailscale for iOS and tvOS")
 }
 
@@ -90,6 +92,9 @@ func filterTags(tags []string, exclude ...string) []string {
 }
 
 func checkJavaVersion() {
+	if os.Getenv("SKIP_JAVA_CHECK") != "" {
+		return
+	}
 	var javaPath string
 	javaHome := os.Getenv("JAVA_HOME")
 	if javaHome == "" {
@@ -102,8 +107,8 @@ func checkJavaVersion() {
 	if err != nil {
 		log.Fatal(E.Cause(err, "check java version"))
 	}
-	if !strings.Contains(javaVersion, "openjdk 17") {
-		log.Fatal("java version should be openjdk 17")
+	if !strings.Contains(strings.ToLower(javaVersion), "openjdk") && !strings.Contains(strings.ToLower(javaVersion), "java") {
+		log.Fatal("java version check failed: " + javaVersion)
 	}
 }
 
@@ -144,14 +149,18 @@ func buildAndroidVariant(config AndroidBuildConfig, bindTarget string) {
 		log.Fatal(err)
 	}
 
-	copyPath := filepath.Join("..", "sing-box-for-android", "app", "libs")
-	if rw.IsDir(copyPath) {
-		copyPath, _ = filepath.Abs(copyPath)
-		err = rw.CopyFile(config.OutputName, filepath.Join(copyPath, config.OutputName))
-		if err != nil {
-			log.Fatal(err)
+	for _, candidate := range []string{
+		filepath.Join("..", "sing-box-for-android", "app", "libs"),
+		filepath.Join("..", "AsteriskBOX", "app", "libs"),
+	} {
+		if rw.IsDir(candidate) {
+			absPath, _ := filepath.Abs(candidate)
+			err = rw.CopyFile(config.OutputName, filepath.Join(absPath, config.OutputName))
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Info("copied ", config.OutputName, " to ", absPath)
 		}
-		log.Info("copied ", config.OutputName, " to ", copyPath)
 	}
 }
 
@@ -173,17 +182,19 @@ func buildAndroid() {
 		Tags:       mainTags,
 	}, bindTarget)
 
-	// Build legacy variant (SDK 21, no naive outbound)
-	legacyTags := filterTags(sharedTags, "with_naive_outbound")
-	// legacyTags = append(legacyTags, memcTags...)
-	if debugEnabled {
-		legacyTags = append(legacyTags, debugTags...)
+	if !skipLegacy {
+		// Build legacy variant (SDK 21, no naive outbound)
+		legacyTags := filterTags(sharedTags, "with_naive_outbound")
+		// legacyTags = append(legacyTags, memcTags...)
+		if debugEnabled {
+			legacyTags = append(legacyTags, debugTags...)
+		}
+		buildAndroidVariant(AndroidBuildConfig{
+			AndroidAPI: 21,
+			OutputName: "libbox-legacy.aar",
+			Tags:       legacyTags,
+		}, bindTarget)
 	}
-	buildAndroidVariant(AndroidBuildConfig{
-		AndroidAPI: 21,
-		OutputName: "libbox-legacy.aar",
-		Tags:       legacyTags,
-	}, bindTarget)
 }
 
 func buildApple() {
