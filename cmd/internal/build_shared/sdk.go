@@ -22,6 +22,8 @@ var (
 func FindSDK() {
 	searchPath := []string{
 		"$ANDROID_HOME",
+		"$ANDROID_SDK_ROOT",
+		"/usr/local/lib/android/sdk",
 		"$HOME/Android/Sdk",
 		"$HOME/.local/lib/android/sdk",
 		"$HOME/Library/Android/sdk",

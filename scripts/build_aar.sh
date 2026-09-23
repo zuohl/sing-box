@@ -23,7 +23,11 @@ echo "Java: $(java -version 2>&1 | head -n 1)"
 
 # 3. 检查 Android SDK / NDK 环境变量
 if [ -z "${ANDROID_HOME:-}" ]; then
-  if [ -d "${HOME}/Library/Android/sdk" ]; then
+  if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "${ANDROID_SDK_ROOT}" ]; then
+    export ANDROID_HOME="${ANDROID_SDK_ROOT}"
+  elif [ -d "/usr/local/lib/android/sdk" ]; then
+    export ANDROID_HOME="/usr/local/lib/android/sdk"
+  elif [ -d "${HOME}/Library/Android/sdk" ]; then
     export ANDROID_HOME="${HOME}/Library/Android/sdk"
   elif [ -d "${HOME}/Android/Sdk" ]; then
     export ANDROID_HOME="${HOME}/Android/Sdk"

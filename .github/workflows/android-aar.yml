@@ -58,7 +58,7 @@ jobs:
 
       - name: Build AAR
         env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           SKIP_JAVA_CHECK: "1"
         run: |
