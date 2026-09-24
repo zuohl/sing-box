@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	qtls "github.com/sagernet/sing-quic"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -46,21 +47,7 @@ func newHTTP3RoundTripper(
 	if baseTLSConfig != nil {
 		handshakeTimeout = baseTLSConfig.HandshakeTimeout()
 	}
-	quicConfig := &quic.Config{
-		InitialStreamReceiveWindow:     options.StreamReceiveWindow.Value(),
-		MaxStreamReceiveWindow:         options.StreamReceiveWindow.Value(),
-		InitialConnectionReceiveWindow: options.ConnectionReceiveWindow.Value(),
-		MaxConnectionReceiveWindow:     options.ConnectionReceiveWindow.Value(),
-		KeepAlivePeriod:                time.Duration(options.KeepAlivePeriod),
-		MaxIdleTimeout:                 time.Duration(options.IdleTimeout),
-		DisablePathMTUDiscovery:        options.DisablePathMTUDiscovery,
-	}
-	if options.InitialPacketSize > 0 {
-		quicConfig.InitialPacketSize = uint16(options.InitialPacketSize)
-	}
-	if options.MaxConcurrentStreams > 0 {
-		quicConfig.MaxIncomingStreams = int64(options.MaxConcurrentStreams)
-	}
+	quicConfig := qtls.ConfigWithGSO(NewQUICConfig(options), rawDialer)
 	if handshakeTimeout > 0 {
 		quicConfig.HandshakeIdleTimeout = handshakeTimeout
 	}
@@ -86,7 +73,7 @@ func newHTTP3RoundTripper(
 			if err != nil {
 				return nil, err
 			}
-			quicConn, err := quic.DialEarlyConn(ctx, conn, tlsConfig, quicConfig)
+			quicConn, err := quic.DialEarlyConn(ctx, conn, tlsConfig, qtls.ConfigWithGSO(quicConfig, conn))
 			if err != nil {
 				conn.Close()
 				return nil, err
@@ -334,4 +321,23 @@ func (t *http3FallbackTransport) markH3Broken(authority string) {
 	}
 	entry.until = time.Now().Add(entry.backoff)
 	t.broken[authority] = entry
+}
+
+func NewQUICConfig(options option.QUICOptions) *quic.Config {
+	quicConfig := &quic.Config{
+		InitialStreamReceiveWindow:     options.StreamReceiveWindow.Value(),
+		MaxStreamReceiveWindow:         options.StreamReceiveWindow.Value(),
+		InitialConnectionReceiveWindow: options.ConnectionReceiveWindow.Value(),
+		MaxConnectionReceiveWindow:     options.ConnectionReceiveWindow.Value(),
+		KeepAlivePeriod:                time.Duration(options.KeepAlivePeriod),
+		MaxIdleTimeout:                 time.Duration(options.IdleTimeout),
+		DisablePathMTUDiscovery:        options.DisablePathMTUDiscovery,
+	}
+	if options.InitialPacketSize > 0 {
+		quicConfig.InitialPacketSize = uint16(options.InitialPacketSize)
+	}
+	if options.MaxConcurrentStreams > 0 {
+		quicConfig.MaxIncomingStreams = int64(options.MaxConcurrentStreams)
+	}
+	return quicConfig
 }
