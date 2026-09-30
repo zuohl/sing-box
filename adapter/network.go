@@ -78,9 +78,10 @@ func NormalizeWIFIBSSID(bssid string) string {
 
 type NetworkInterface struct {
 	control.Interface
-	Type        C.InterfaceType
-	DNSServers  []string
-	Gateways    []netip.Addr
+	Type             C.InterfaceType
+	DNSServers       []string
+	DNSSearchDomains []string
+	Gateways         []netip.Addr
 	Expensive   bool
 	Constrained bool
 }
