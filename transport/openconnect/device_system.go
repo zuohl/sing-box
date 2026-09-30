@@ -199,7 +199,7 @@ func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, m
 
 func (d *systemDevice) readLoopDarwin(tunInterface tun.DarwinTUN) {
 	for {
-		packetBuffers, readErr := tunInterface.BatchRead(0, 0)
+		packetBuffers, readErr := tunInterface.BatchRead()
 		outboundBuffers := packetBuffers[:0]
 		for _, packetBuffer := range packetBuffers {
 			if packetBuffer.IsEmpty() {
