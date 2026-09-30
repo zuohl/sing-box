@@ -721,7 +721,7 @@ func (s *ServerEndpoint) writeRouteMisses(routeMisses []*ovpn.RouteMissError) {
 	replies := make([][]byte, 0, len(routeMisses))
 	for _, routeMiss := range routeMisses {
 		sourceAddress := packetSourceAddress(routeMiss.Packet, inet4Address, inet6Address)
-		reply, built := tun.BuildUnreachable(routeMiss.Packet, sourceAddress, headroom)
+		reply, built := tun.BuildICMPError(routeMiss.Packet, tun.ICMPErrorNoRoute, sourceAddress, 0, headroom)
 		if built {
 			replies = append(replies, reply)
 		}

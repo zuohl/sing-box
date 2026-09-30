@@ -262,8 +262,8 @@ github.com/reF1nd/sing-quic v0.7.1-0.20260924162054-68e0ff4243bb h1:fSpe0ydbICc3
 github.com/reF1nd/sing-quic v0.7.1-0.20260924162054-68e0ff4243bb/go.mod h1:XZMOZtgGRu4xxgkZ7LoQAGuhSeC9ONPD7SI3qXn/Gw8=
 github.com/reF1nd/sing-snell v0.0.0-20260927103919-96ee7c6bc2e1 h1:jw1wrijdXfn+BwdiJ9RV1vNMNYQQgQ7mkP3AhsJY0ZI=
 github.com/reF1nd/sing-snell v0.0.0-20260927103919-96ee7c6bc2e1/go.mod h1:et8Lws4f5QbOrY65DmjevHGup3mijJkhswkto6cwciM=
-github.com/reF1nd/sing-tun v0.9.4-0.20260917152937-ed26162d6e17 h1:ErewhEJgx1VTS54g36X8AAeOZ5KYc448Nmdugt97MMM=
-github.com/reF1nd/sing-tun v0.9.4-0.20260917152937-ed26162d6e17/go.mod h1:liMb9HPIWcFWqF6VJ/ttIY8fTSRPdRltBeSeEcXt1Dk=
+github.com/reF1nd/sing-tun v0.9.6-0.20260927073404-ea0e670fb952 h1:tHRzfp+mbrOrj4LU6vwSb8humjacxC0l7O1hkHoo2HU=
+github.com/reF1nd/sing-tun v0.9.6-0.20260927073404-ea0e670fb952/go.mod h1:liMb9HPIWcFWqF6VJ/ttIY8fTSRPdRltBeSeEcXt1Dk=
 github.com/reF1nd/wireguard-go v0.0.8-0.20260927094743-30d7940c3d1f h1:cBhUL3BAEgwNpL0L3awByI4uIWGd37+s23M8+bMv3qM=
 github.com/reF1nd/wireguard-go v0.0.8-0.20260927094743-30d7940c3d1f/go.mod h1:er10sELpmzLXq7S7Pbc1Zsbyapcr+/gxNAHKTo6fzVA=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
