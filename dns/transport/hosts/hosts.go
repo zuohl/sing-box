@@ -29,6 +29,7 @@ var (
 type Transport struct {
 	dns.TransportAdapter
 	ctx              context.Context
+	logger           log.ContextLogger
 	files            []*File
 	predefined       map[string][]netip.Addr
 	predefinedDomain map[string]string
@@ -41,14 +42,14 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		predefinedDomain = make(map[string]string)
 	)
 	if len(options.Path) == 0 {
-		defaultFile, err := NewDefault()
+		defaultFile, err := NewDefaultWithLogger(logger)
 		if err != nil {
 			return nil, err
 		}
 		files = append(files, defaultFile)
 	} else {
 		for _, path := range options.Path {
-			files = append(files, NewFile(ctx, filemanager.BasePath(ctx, os.ExpandEnv(path))))
+			files = append(files, NewFileWithLogger(ctx, logger, filemanager.BasePath(ctx, os.ExpandEnv(path))))
 		}
 	}
 	if options.Predefined != nil {
@@ -64,6 +65,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeHosts, tag, nil),
 		ctx:              ctx,
+		logger:           logger,
 		files:            files,
 		predefined:       predefined,
 		predefinedDomain: predefinedDomain,
@@ -82,14 +84,15 @@ func (t *Transport) Reset() {
 }
 
 func (t *Transport) PreferredDomain(domain string) bool {
-	if _, loaded := t.predefined[domain]; loaded {
+	canonical := mDNS.CanonicalName(domain)
+	if _, loaded := t.predefined[canonical]; loaded {
 		return true
 	}
-	if _, loaded := t.predefinedDomain[domain]; loaded {
+	if _, loaded := t.predefinedDomain[canonical]; loaded {
 		return true
 	}
 	for _, file := range t.files {
-		if len(file.Lookup(domain)) > 0 {
+		if len(file.Lookup(canonical)) > 0 {
 			return true
 		}
 	}
@@ -101,17 +104,44 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	domain := mDNS.CanonicalName(question.Name)
 	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
 		if addresses, ok := t.predefined[domain]; ok {
+			if t.logger != nil {
+				t.logger.InfoContext(ctx, "hosts hit predefined: ", domain, " -> ", addresses)
+			}
 			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 		}
 		if targetDomain, ok := t.predefinedDomain[domain]; ok {
+			if t.logger != nil {
+				t.logger.InfoContext(ctx, "hosts hit predefined alias: ", domain, " -> ", targetDomain)
+			}
 			return t.exchangePredefinedDomain(ctx, message, domain, targetDomain)
 		}
 		for _, file := range t.files {
 			addresses := file.Lookup(domain)
 			if len(addresses) > 0 {
+				if t.logger != nil {
+					t.logger.InfoContext(ctx, "hosts hit file (", file.path, "): ", domain, " -> ", addresses)
+				}
 				return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 			}
 		}
+	} else if t.PreferredDomain(domain) {
+		if t.logger != nil {
+			t.logger.DebugContext(ctx, "hosts domain found but qtype ", question.Qtype, " not matched, return NODATA: ", domain)
+		}
+		return &mDNS.Msg{
+			MsgHdr: mDNS.MsgHdr{
+				Id:                 message.Id,
+				Rcode:              mDNS.RcodeSuccess,
+				Response:           true,
+				Authoritative:      true,
+				RecursionDesired:   message.RecursionDesired,
+				RecursionAvailable: true,
+			},
+			Question: []mDNS.Question{question},
+		}, nil
+	}
+	if t.logger != nil {
+		t.logger.DebugContext(ctx, "hosts miss: ", domain)
 	}
 	return &mDNS.Msg{
 		MsgHdr: mDNS.MsgHdr{

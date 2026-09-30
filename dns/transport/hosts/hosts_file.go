@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service/filemanager"
 
@@ -20,6 +21,7 @@ const cacheMaxAge = 5 * time.Second
 
 type File struct {
 	ctx     context.Context
+	logger  log.ContextLogger
 	path    string
 	access  sync.Mutex
 	byName  map[string][]netip.Addr
@@ -29,25 +31,38 @@ type File struct {
 }
 
 func NewFile(ctx context.Context, path string) *File {
+	return NewFileWithLogger(ctx, nil, path)
+}
+
+func NewFileWithLogger(ctx context.Context, logger log.ContextLogger, path string) *File {
 	return &File{
-		ctx:  ctx,
-		path: path,
+		ctx:    ctx,
+		logger: logger,
+		path:   path,
 	}
 }
 
 func NewDefault() (*File, error) {
+	return NewDefaultWithLogger(nil)
+}
+
+func NewDefaultWithLogger(logger log.ContextLogger) (*File, error) {
 	defaultPathResolved, err := defaultPath()
 	if err != nil {
 		return nil, E.Cause(err, "resolve default hosts path")
 	}
-	return NewFile(context.Background(), defaultPathResolved), nil
+	return NewFileWithLogger(context.Background(), logger, defaultPathResolved), nil
 }
 
 func (f *File) Lookup(name string) []netip.Addr {
 	f.access.Lock()
 	defer f.access.Unlock()
 	f.update()
-	return f.byName[dns.CanonicalName(name)]
+	addrs := f.byName[dns.CanonicalName(name)]
+	if len(addrs) > 0 && f.logger != nil {
+		f.logger.DebugContext(f.ctx, "hosts lookup hit: ", name, " -> ", addrs)
+	}
+	return addrs
 }
 
 func (f *File) update() {
@@ -57,6 +72,9 @@ func (f *File) update() {
 	}
 	stat, err := filemanager.Stat(f.ctx, f.path)
 	if err != nil {
+		if f.logger != nil {
+			f.logger.WarnContext(f.ctx, "stat hosts file failed: ", f.path, ": ", err)
+		}
 		return
 	}
 	if f.modTime.Equal(stat.ModTime()) && f.size == stat.Size() {
@@ -66,6 +84,9 @@ func (f *File) update() {
 	byName := make(map[string][]netip.Addr)
 	file, err := filemanager.Open(f.ctx, f.path)
 	if err != nil {
+		if f.logger != nil {
+			f.logger.WarnContext(f.ctx, "open hosts file failed: ", f.path, ": ", err)
+		}
 		return
 	}
 	defer file.Close()
@@ -80,6 +101,9 @@ func (f *File) update() {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
+			}
+			if f.logger != nil {
+				f.logger.WarnContext(f.ctx, "read hosts file error: ", f.path, ": ", err)
 			}
 			return
 		}
@@ -101,6 +125,9 @@ func (f *File) update() {
 		var addr netip.Addr
 		addr, err = netip.ParseAddr(fields[0])
 		if err != nil {
+			if f.logger != nil {
+				f.logger.DebugContext(f.ctx, "skip invalid IP in hosts file ", f.path, ": ", fields[0])
+			}
 			continue
 		}
 		for index := 1; index < len(fields); index++ {
@@ -112,4 +139,7 @@ func (f *File) update() {
 	f.modTime = stat.ModTime()
 	f.size = stat.Size()
 	f.byName = byName
+	if f.logger != nil {
+		f.logger.InfoContext(f.ctx, "loaded ", len(byName), " hosts domains from ", f.path)
+	}
 }
