@@ -181,20 +181,6 @@ func buildAndroid() {
 		OutputName: "libbox.aar",
 		Tags:       mainTags,
 	}, bindTarget)
-
-	if !skipLegacy {
-		// Build legacy variant (SDK 21, no naive outbound)
-		legacyTags := filterTags(sharedTags, "with_naive_outbound")
-		// legacyTags = append(legacyTags, memcTags...)
-		if debugEnabled {
-			legacyTags = append(legacyTags, debugTags...)
-		}
-		buildAndroidVariant(AndroidBuildConfig{
-			AndroidAPI: 21,
-			OutputName: "libbox-legacy.aar",
-			Tags:       legacyTags,
-		}, bindTarget)
-	}
 }
 
 func buildApple() {

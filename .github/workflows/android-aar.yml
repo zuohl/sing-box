@@ -3,10 +3,6 @@ name: Build Android AAR
 on:
   workflow_dispatch:
     inputs:
-      skip_legacy:
-        description: 'Skip building libbox-legacy.aar (faster)'
-        type: boolean
-        default: false
       create_release:
         description: 'Publish AAR to GitHub Release'
         type: boolean
@@ -62,16 +58,12 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           SKIP_JAVA_CHECK: "1"
         run: |
-          BUILD_ARGS=""
-          if [ "${{ inputs.skip_legacy }}" = "true" ]; then
-            BUILD_ARGS="-skip-legacy"
-          fi
-          bash scripts/build_aar.sh $BUILD_ARGS
+          bash scripts/build_aar.sh
 
       - name: Inspect AAR & SO Sizes
         run: |
           echo "=== AAR 文件列表与大小 ==="
-          ls -lh libbox*.aar
+          ls -lh libbox.aar
           echo "=== libbox.aar 内部 so 详情 ==="
           unzip -l libbox.aar | grep -E "libbox.so" || true
 
@@ -79,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: libbox-aar
-          path: libbox*.aar
+          path: libbox.aar
 
       - name: Create or Update GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/') || (inputs.create_release && inputs.release_tag != '') }}
@@ -93,8 +85,8 @@ jobs:
           echo "Target Tag: $TAG_NAME"
           if gh release view "$TAG_NAME" &>/dev/null; then
             echo "Release $TAG_NAME exists, uploading assets..."
-            gh release upload "$TAG_NAME" libbox*.aar --clobber
+            gh release upload "$TAG_NAME" libbox.aar --clobber
           else
             echo "Creating new release $TAG_NAME..."
-            gh release create "$TAG_NAME" libbox*.aar --title "$TAG_NAME" --notes "Automated build of libbox.aar with trimmed tags and stripped symbols."
+            gh release create "$TAG_NAME" libbox.aar --title "$TAG_NAME" --notes "Automated build of libbox.aar with trimmed tags and stripped symbols."
           fi

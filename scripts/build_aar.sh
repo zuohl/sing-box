@@ -68,6 +68,3 @@ echo "=== 构建完成 ==="
 if [ -f "${REPO_DIR}/libbox.aar" ]; then
   ls -lh "${REPO_DIR}/libbox.aar"
 fi
-if [ -f "${REPO_DIR}/libbox-legacy.aar" ]; then
-  ls -lh "${REPO_DIR}/libbox-legacy.aar"
-fi
