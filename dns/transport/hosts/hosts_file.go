@@ -60,9 +60,22 @@ func (f *File) Lookup(name string) []netip.Addr {
 	f.update()
 	addrs := f.byName[dns.CanonicalName(name)]
 	if len(addrs) > 0 && f.logger != nil {
-		f.logger.DebugContext(f.ctx, "hosts lookup hit: ", name, " -> ", addrs)
+		f.logger.DebugContext(f.ctx, "hosts lookup hit: ", name, " -> ", formatAddrs(addrs))
 	}
 	return addrs
+}
+
+func formatAddrs(addrs []netip.Addr) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, addr := range addrs {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(addr.String())
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 func (f *File) update() {
@@ -142,7 +155,7 @@ func (f *File) update() {
 	if f.logger != nil {
 		f.logger.InfoContext(f.ctx, "loaded ", len(byName), " hosts domains from ", f.path)
 		for domain, addrs := range byName {
-			f.logger.InfoContext(f.ctx, "hosts entry: ", domain, " -> ", addrs)
+			f.logger.InfoContext(f.ctx, "hosts entry: ", domain, " -> ", formatAddrs(addrs))
 		}
 	}
 }
