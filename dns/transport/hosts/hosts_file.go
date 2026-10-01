@@ -141,5 +141,8 @@ func (f *File) update() {
 	f.byName = byName
 	if f.logger != nil {
 		f.logger.InfoContext(f.ctx, "loaded ", len(byName), " hosts domains from ", f.path)
+		for domain, addrs := range byName {
+			f.logger.InfoContext(f.ctx, "hosts entry: ", domain, " -> ", addrs)
+		}
 	}
 }
