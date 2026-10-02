@@ -61,8 +61,13 @@ echo "gobind: $(command -v gobind)"
 cd "${REPO_DIR}"
 export SKIP_JAVA_CHECK="${SKIP_JAVA_CHECK:-1}"
 
-echo "开始编译 libbox.aar (参数: $@)..."
-go run ./cmd/internal/build_libbox -target android "$@"
+if [ -f "${SCRIPT_DIR}/shared_aar/build_shared_aar.py" ]; then
+  echo "使用双模共享 (JNI + ROOT CLI) 构建 libbox.aar..."
+  python3 "${SCRIPT_DIR}/shared_aar/build_shared_aar.py" "$@"
+else
+  echo "开始编译 libbox.aar (参数: $@)..."
+  go run ./cmd/internal/build_libbox -target android "$@"
+fi
 
 echo "=== 构建完成 ==="
 if [ -f "${REPO_DIR}/libbox.aar" ]; then

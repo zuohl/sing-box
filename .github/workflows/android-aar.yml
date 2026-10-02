@@ -64,8 +64,8 @@ jobs:
         run: |
           echo "=== AAR 文件列表与大小 ==="
           ls -lh libbox.aar
-          echo "=== libbox.aar 内部 so 详情 ==="
-          unzip -l libbox.aar | grep -E "libbox.so" || true
+          echo "=== libbox.aar 内部 so 详情 (libbox.so 与 libsing-box.so) ==="
+          unzip -l libbox.aar | grep -E "\.so" || true
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
