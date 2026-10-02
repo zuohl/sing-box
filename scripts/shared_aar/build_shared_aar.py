@@ -232,7 +232,9 @@ def build(args):
             target_flag = f'--target={triple}{args.api}'
 
             print(f"正在编译 {abi} 的双模 libbox.so...")
-            arch_build_dir = stage_dir / 'build' / arch
+            arch_build_dir = source_dir / 'build' / arch / 'shared'
+            if arch_build_dir.exists():
+                shutil.rmtree(arch_build_dir)
             shutil.copytree(gobind_dir, arch_build_dir)
             shutil.copyfile(shared_assets_dir / 'cli_export.go', arch_build_dir / 'cli_export.go')
 
@@ -242,10 +244,11 @@ def build(args):
             if arch == 'arm':
                 arch_env['GOARM'] = '7'
             arch_env['CC'] = f'"{clang}" {target_flag}'
+            arch_env['CGO_LDFLAGS'] = '-Wl,-z,max-page-size=16384'
 
             so_path = out_abi_dir / 'libbox.so'
             run_cmd([
-                'go', 'build', '-buildmode=c-shared',
+                'go', 'build', '-mod=mod', '-buildmode=c-shared',
                 '-trimpath', '-buildvcs=false',
                 '-tags=' + tags,
                 '-ldflags=' + ldflags,
@@ -255,12 +258,15 @@ def build(args):
 
             print(f"正在编译 {abi} 的微型启动器 libsing-box.so...")
             launcher_so = out_abi_dir / 'libsing-box.so'
-            run_cmd([
+            common = [
                 str(clang), target_flag,
-                '-O2', '-fPIC', '-fPIE', '-pie',
-                '-Wall', '-Wextra', '-Werror',
+                '-O2', '-fPIC',
                 '-Wl,-z,max-page-size=16384',
                 '-Wl,--build-id=none', '-Wl,-s',
+            ]
+            run_cmd(common + [
+                '-fPIE', '-pie',
+                '-Wall', '-Wextra', '-Werror',
                 '-o', str(launcher_so),
                 str(shared_assets_dir / 'launcher.c'),
                 '-ldl',
@@ -273,6 +279,11 @@ def build(args):
         out_aar.parent.mkdir(parents=True, exist_ok=True)
         print(f"正在组装 AAR 产物: {out_aar}")
         package_aar(baseline_aar, out_aar, artifacts)
+
+        baseline_sources = stage_dir / 'baseline-sources.jar'
+        if baseline_sources.is_file():
+            shutil.copyfile(baseline_sources, out_aar.with_name(out_aar.stem + '-sources.jar'))
+
         print(f"=== 构建成功: {out_aar} ({out_aar.stat().st_size / 1024 / 1024:.2f} MB) ===")
 
     finally:
