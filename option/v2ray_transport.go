@@ -1,23 +1,37 @@
 package option
 
 import (
-	"reflect"
+	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
+func NormalizeXHTTPMode(mode string) (string, error) {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return "auto", nil
+	}
+	switch mode {
+	case "auto", "packet-up", "stream-up", "stream-one":
+		return mode, nil
+	default:
+		return "", E.New("unsupported mode: ", mode)
+	}
+}
+
 type _V2RayTransportOptions struct {
-	Type               string                  `json:"type" enum:"http,ws,quic,grpc,httpupgrade"`
+	Type               string                  `json:"type"`
 	HTTPOptions        V2RayHTTPOptions        `json:"-"`
 	WebsocketOptions   V2RayWebsocketOptions   `json:"-"`
 	QUICOptions        V2RayQUICOptions        `json:"-"`
 	GRPCOptions        V2RayGRPCOptions        `json:"-"`
 	HTTPUpgradeOptions V2RayHTTPUpgradeOptions `json:"-"`
+	XHTTPOptions       V2RayXHTTPOptions       `json:"-"`
+	KCPOptions         V2RayKCPOptions         `json:"-"`
 }
 
 type V2RayTransportOptions _V2RayTransportOptions
@@ -35,6 +49,8 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 		v = o.GRPCOptions
 	case C.V2RayTransportTypeHTTPUpgrade:
 		v = o.HTTPUpgradeOptions
+	case C.V2RayTransportTypeXHTTP:
+		v = o.XHTTPOptions
 	case "":
 		return nil, E.New("missing transport type")
 	default:
@@ -60,6 +76,8 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.GRPCOptions
 	case C.V2RayTransportTypeHTTPUpgrade:
 		v = &o.HTTPUpgradeOptions
+	case C.V2RayTransportTypeXHTTP:
+		v = &o.XHTTPOptions
 	default:
 		return E.New("unknown transport type: " + o.Type)
 	}
@@ -68,18 +86,6 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	return nil
-}
-
-func (o V2RayTransportOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
-	return builder.Define("V2RayTransport", func() (*schema.Node, error) {
-		return schema.DiscriminatedUnion(builder, "type", true, []schema.UnionVariant{
-			{Value: C.V2RayTransportTypeHTTP, StructType: reflect.TypeFor[V2RayHTTPOptions]()},
-			{Value: C.V2RayTransportTypeWebsocket, StructType: reflect.TypeFor[V2RayWebsocketOptions]()},
-			{Value: C.V2RayTransportTypeQUIC, StructType: reflect.TypeFor[V2RayQUICOptions]()},
-			{Value: C.V2RayTransportTypeGRPC, StructType: reflect.TypeFor[V2RayGRPCOptions]()},
-			{Value: C.V2RayTransportTypeHTTPUpgrade, StructType: reflect.TypeFor[V2RayHTTPUpgradeOptions]()},
-		}, nil)
-	})
 }
 
 type V2RayHTTPOptions struct {
@@ -112,4 +118,79 @@ type V2RayHTTPUpgradeOptions struct {
 	Host    string               `json:"host,omitempty"`
 	Path    string               `json:"path,omitempty"`
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
+}
+
+type V2RayKCPOptions struct {
+	MTU              uint32 `json:"mtu,omitempty"`
+	TTI              uint32 `json:"tti,omitempty"`
+	UplinkCapacity   uint32 `json:"uplink_capacity,omitempty"`
+	DownlinkCapacity uint32 `json:"downlink_capacity,omitempty"`
+	Congestion       bool   `json:"congestion,omitempty"`
+	ReadBufferSize   uint32 `json:"read_buffer_size,omitempty"`
+	WriteBufferSize  uint32 `json:"write_buffer_size,omitempty"`
+	HeaderType       string `json:"header_type,omitempty"`
+	Seed             string `json:"seed,omitempty"`
+	CwndMultiplier   uint32 `json:"cwnd_multiplier,omitempty"`
+	MaxSendingWindow uint32 `json:"max_sending_window,omitempty"`
+}
+
+func (k *V2RayKCPOptions) GetMTU() uint32 {
+	if k.MTU == 0 {
+		return 1350
+	}
+	return k.MTU
+}
+
+func (k *V2RayKCPOptions) GetTTI() uint32 {
+	if k.TTI == 0 {
+		return 50
+	}
+	// Valid range: 10-5000 (extended from 10-100 to support high-latency networks)
+	return k.TTI
+}
+
+func (k *V2RayKCPOptions) GetUplinkCapacity() uint32 {
+	if k.UplinkCapacity == 0 {
+		return 12
+	}
+	return k.UplinkCapacity
+}
+
+func (k *V2RayKCPOptions) GetDownlinkCapacity() uint32 {
+	if k.DownlinkCapacity == 0 {
+		return 100
+	}
+	return k.DownlinkCapacity
+}
+
+func (k *V2RayKCPOptions) GetReadBufferSize() uint32 {
+	if k.ReadBufferSize == 0 {
+		return 1
+	}
+	return k.ReadBufferSize
+}
+
+func (k *V2RayKCPOptions) GetWriteBufferSize() uint32 {
+	if k.WriteBufferSize == 0 {
+		return 1
+	}
+	return k.WriteBufferSize
+}
+
+func (k *V2RayKCPOptions) GetHeaderType() string {
+	if k.HeaderType == "" {
+		return "none"
+	}
+	return k.HeaderType
+}
+
+func (k *V2RayKCPOptions) GetCwndMultiplier() uint32 {
+	if k.CwndMultiplier == 0 {
+		return 20
+	}
+	return k.CwndMultiplier
+}
+
+func (k *V2RayKCPOptions) GetMaxSendingWindow() uint32 {
+	return k.MaxSendingWindow
 }
