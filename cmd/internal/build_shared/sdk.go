@@ -22,6 +22,8 @@ var (
 func FindSDK() {
 	searchPath := []string{
 		"$ANDROID_HOME",
+		"$ANDROID_SDK_ROOT",
+		"/usr/local/lib/android/sdk",
 		"$HOME/Android/Sdk",
 		"$HOME/.local/lib/android/sdk",
 		"$HOME/Library/Android/sdk",
@@ -31,6 +33,15 @@ func FindSDK() {
 		if rw.IsFile(filepath.Join(path, "licenses", "android-sdk-license")) {
 			androidSDKPath = path
 			break
+		}
+	}
+	if androidSDKPath == "" {
+		for _, path := range searchPath {
+			path = os.ExpandEnv(path)
+			if rw.IsDir(filepath.Join(path, "platforms")) {
+				androidSDKPath = path
+				break
+			}
 		}
 	}
 	if androidSDKPath == "" {
