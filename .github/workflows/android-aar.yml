@@ -96,7 +96,7 @@ jobs:
           fi
 
       - name: Trigger Downstream AsteriskBOX Build
-        if: ${{ (startsWith(github.ref, 'refs/tags/') || (inputs.create_release && inputs.release_tag != '')) && (inputs.trigger_downstream != false) }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || (inputs.create_release && inputs.release_tag != '' && inputs.trigger_downstream != false) }}
         env:
           GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.PAT_ASTERISKBOX || secrets.GITHUB_TOKEN }}
         run: |
