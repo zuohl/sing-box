@@ -109,8 +109,15 @@ func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 	if m.pauseManager != nil {
 		m.devicePaused.Store(m.pauseManager.IsDevicePaused())
 	}
-	m.update()
-	go m.loop()
+	// lx: SPEC 136 — the first update() is taken off the start path: it ends up
+	// in SetKeepIdleConnections → sing-mux Client.CloseIdleConnections, whose
+	// access mutex a URLTest dial started at PostStart holds across offerNew(),
+	// so Box.Start waited out a remote handshake. loop() remains the only
+	// caller of update(), so keepIdle stays single-goroutine.
+	go func() {
+		m.update()
+		m.loop()
+	}()
 	if m.pauseManager != nil {
 		pauseCallback := m.pauseManager.RegisterCallback(func(event int) {
 			switch event {
