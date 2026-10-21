@@ -39,6 +39,9 @@ func NewSource(_ context.Context) *Source {
 }
 
 func (s *Source) Configuration() *Config {
+	if config := managedConfiguration(); config != nil {
+		return config
+	}
 	s.tryUpdate()
 	return s.current.Load().config
 }

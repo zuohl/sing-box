@@ -723,6 +723,12 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 	boxService := s.instance
 	s.serviceAccess.RUnlock()
 	outboundTag := request.OutboundTag
+	if urlTestOptionsHandled, urlTestOptionsErr := s.handleURLTestOptions(ctx, request); urlTestOptionsHandled {
+		if urlTestOptionsErr != nil {
+			return nil, urlTestOptionsErr
+		}
+		return &emptypb.Empty{}, nil
+	}
 	outbound, isLoaded := boxService.outboundManager.Outbound(outboundTag)
 	if !isLoaded {
 		return nil, status.Error(codes.NotFound, "outbound not found: "+outboundTag)
