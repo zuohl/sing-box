@@ -17,7 +17,6 @@ var managed atomic.Pointer[Config]
 // are keyed by the configuration signature.
 func SetManagedServers(servers []netip.AddrPort) {
 	config := &Config{
-		Ndots:    1,
 		Timeout:  5 * time.Second,
 		Attempts: 2,
 		Search:   defaultSearch(),
