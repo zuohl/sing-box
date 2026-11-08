@@ -79,6 +79,9 @@ type inboundResources struct {
 }
 
 type inboundWorkers struct {
+	policyWake                chan struct{}
+	policyCancel              context.CancelFunc
+	policyDone                chan struct{}
 	cgroupReleaseWait         sync.WaitGroup
 	cgroupRecoveryAccess      sync.Mutex
 	cgroupRecoveryCancel      context.CancelFunc
@@ -277,6 +280,12 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	network := options.Network.Build()
 	enableTCP := common.Contains(network, N.NetworkTCP)
 	enableUDP := common.Contains(network, N.NetworkUDP)
+	if err = validatePortPolicyCapacity("local bypass_port", localBypassPort, localDNSMode, enableTCP, enableUDP); err != nil {
+		return nil, err
+	}
+	if err = validatePortPolicyCapacity("shared bypass_port", sharedBypassPort, sharedDNSMode, enableTCP, enableUDP); err != nil {
+		return nil, err
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	if networkManager == nil {
 		return nil, E.New("missing network manager")
@@ -337,6 +346,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		androidUIDOptions: newAndroidUIDOptions(options.Local),
 		fakeIPICMPReply:   fakeIPICMPReply,
 		inboundWorkers: inboundWorkers{
+			policyWake:       make(chan struct{}, 1),
 			tcAssignmentWake: make(chan struct{}, 1),
 		},
 	}

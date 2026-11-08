@@ -64,6 +64,7 @@ func (i *Inbound) diagnosticsLocked() EBPFDiagnostics {
 		if runtime.selfBypass != nil {
 			diagnostics.LocalSelfBypassMode = runtime.selfBypass.Mode().String()
 			diagnostics.LocalSelfBypassCleanupMode = runtime.selfBypass.CleanupMode()
+			_, _, diagnostics.LocalSelfBypassMarkEnabled = runtime.selfBypass.SocketMarkConfig()
 		}
 	}
 	if backend := runtime.cgroupBackend; backend != nil && !backend.IsClosed() {
@@ -379,7 +380,7 @@ func (i *Inbound) waitingAttachmentDiagnostics(attachments []EBPFAttachmentDiagn
 			interfaces = append(interfaces, interfaceName)
 		}
 	}
-	if i.localEnabled && !attachmentHasRole(attachments, "local") {
+	if i.localSocketAssignEnabled() && !attachmentHasRole(attachments, "local") {
 		defaultInterface := i.monitoredDefaultInterfaceName()
 		if defaultInterface == "" {
 			defaultInterface = "default"
@@ -450,7 +451,10 @@ func deriveDiagnosticsState(d EBPFDiagnostics) string {
 	if d.RecoveryUnrecoverable || !d.LocalBypassRuleSet.Consistent || !d.SharedBypassRuleSet.Consistent {
 		return EBPFDiagnosticsStateNeedsAttention
 	}
-	if d.LocalEnabled && !attachmentHasRole(d.Attachments, "local") {
+	if d.LocalEnabled && d.LocalDataPlane == "cgroup" && d.LocalCgroupAttachMode == "" {
+		return EBPFDiagnosticsStateNeedsAttention
+	}
+	if d.LocalEnabled && d.LocalDataPlane != "cgroup" && !attachmentHasRole(d.Attachments, "local") {
 		return EBPFDiagnosticsStateWaitingForInterface
 	}
 	if d.SharedEnabled && !attachmentHasRole(d.Attachments, "shared") {

@@ -161,6 +161,7 @@ func (i *Inbound) startInbound() error {
 		"local_ipv6":       i.localIPv6,
 		"shared_ipv6":      i.sharedIPv6,
 		"self_bypass":      i.selfBypassMode(),
+		"self_bypass_mark": i.selfBypassMarkEnabled(),
 		"process_tracking": i.processTrackingMode(),
 		"tc_priority":      i.tcPriority,
 	}
@@ -340,6 +341,7 @@ func (i *Inbound) logCgroupRuntime(network string, backend *commonEBPF.CgroupBac
 		"udp_storage":           backend.UDPStorageMode(),
 		"userspace_udp_cleanup": backend.UDPUserspaceCleanupMode(),
 		"self_bypass":           i.selfBypassMode(),
+		"self_bypass_mark":      i.selfBypassMarkEnabled(),
 		"process_tracking":      i.processTrackingMode(),
 	}
 	if cgroup := backend.CgroupPath(); cgroup != "" {
@@ -424,13 +426,15 @@ func (i *Inbound) selfBypassMode() string {
 	if !i.localEnabled || i.selfBypass == nil {
 		return "none"
 	}
-	if _, _, enabled := i.selfBypass.SocketMarkConfig(); enabled {
-		return "socket_mark"
+	return i.selfBypass.Mode().String()
+}
+
+func (i *Inbound) selfBypassMarkEnabled() bool {
+	if !i.localEnabled || i.selfBypass == nil {
+		return false
 	}
-	if i.selfBypassCgroup {
-		return i.selfBypass.Mode().String()
-	}
-	return "userspace_socket_cookie"
+	_, _, enabled := i.selfBypass.SocketMarkConfig()
+	return enabled
 }
 
 func (i *Inbound) startSelfBypass() error {

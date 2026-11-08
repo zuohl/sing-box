@@ -78,10 +78,13 @@ func (d EBPFDiagnostics) WriteText(w io.Writer) error {
 	lines = append(lines, fmt.Sprintf("policy_epoch: local=%d/%d shared=%d/%d converged=%t", d.PolicyEpoch.LocalConfirmed, d.PolicyEpoch.LocalExpected, d.PolicyEpoch.SharedConfirmed, d.PolicyEpoch.SharedExpected, d.PolicyEpoch.Converged))
 	lines = append(lines, fmt.Sprintf("UDP sessions: %d", d.UDPSessionCount))
 	lines = append(lines, fmt.Sprintf(
-		"UDP NAT: active=%d created=%d capacity_evictions=%d queue_drops=%d socket_release_events=%d socket_release_matched=%d pending_release_capacity_rejected=%d release_notification_drops=%d",
+		"UDP NAT: active=%d created=%d capacity_evictions=%d queue_drops=%d socket_release_events=%d socket_release_matched=%d pending_release_capacity_rejected=%d release_notification_drops=%d redirect_admission_failures=%d udp_token_admission_failures=%d udp_token_reverse_failures=%d udp_peer_admission_failures=%d tcp_peer_admission_failures=%d udp_recovery_admission_failures=%d",
 		d.UDPNAT.ActiveSessions, d.UDPNAT.CreatedSessions, d.UDPNAT.CapacityEvictions, d.UDPNAT.QueueDrops,
 		d.UDPNAT.SocketReleaseEvents, d.UDPNAT.SocketReleaseMatched,
 		d.UDPNAT.PendingReleaseCapacityRejected, d.UDPNAT.ReleaseNotificationDrops,
+		d.UDPNAT.RedirectAdmissionFailures, d.UDPNAT.UDPTokenAdmissionFailures,
+		d.UDPNAT.UDPTokenReverseFailures, d.UDPNAT.UDPPeerAdmissionFailures,
+		d.UDPNAT.TCPPeerAdmissionFailures, d.UDPNAT.UDPRecoveryAdmissionFailures,
 	))
 	lines = append(lines, fmt.Sprintf(
 		"UDP reply sockets: count=%d peak=%d evicted=%d capacity_rejected=%d",

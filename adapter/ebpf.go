@@ -63,6 +63,7 @@ type EBPFRuntimeDiagnostics struct {
 	LocalCgroupAttachMode         string
 	LocalSelfBypassMode           string
 	LocalSelfBypassCleanupMode    string
+	LocalSelfBypassMarkEnabled    bool
 	LocalUDPCleanupMode           string
 	LocalUDPUserspaceCleanupMode  string
 	LocalUDPStorageMode           string
