@@ -78,15 +78,14 @@ func TestGetEBPFDiagnosticsUsesSingBoxAPI(t *testing.T) {
 	manager := &testInboundManager{inbounds: []adapter.Inbound{
 		&testPlainInbound{tag: "direct-in"},
 		&testEBPFInbound{tag: "ebpf-in", diagnostics: adapter.EBPFRuntimeDiagnostics{
-			SchemaVersion:              adapter.EBPFDiagnosticsSchemaVersion,
-			ObservedAt:                 observedAt,
-			Tag:                        "ebpf-in",
-			State:                      "recovering",
-			LocalEnabled:               true,
-			LocalSelfBypassMarkEnabled: true,
-			TCRoutingSlot:              2,
-			LastError:                  "attachment missing",
-			LastErrorAt:                &lastErrorAt,
+			SchemaVersion: adapter.EBPFDiagnosticsSchemaVersion,
+			ObservedAt:    observedAt,
+			Tag:           "ebpf-in",
+			State:         "recovering",
+			LocalEnabled:  true,
+			TCRoutingSlot: 2,
+			LastError:     "attachment missing",
+			LastErrorAt:   &lastErrorAt,
 			Attachments: []adapter.EBPFAttachmentDiagnostics{{
 				InterfaceName:  "wlan0",
 				InterfaceIndex: 7,
@@ -169,9 +168,6 @@ func TestGetEBPFDiagnosticsUsesSingBoxAPI(t *testing.T) {
 	diagnostics := response.Inbounds[0]
 	if diagnostics.Tag != "ebpf-in" || diagnostics.ObservedAt != observedAt.UnixMilli() {
 		t.Fatalf("unexpected diagnostics identity: %+v", diagnostics)
-	}
-	if !diagnostics.LocalSelfBypassMarkEnabled {
-		t.Fatal("self-bypass mark state was dropped from the daemon response")
 	}
 	if diagnostics.LastErrorAt == nil || *diagnostics.LastErrorAt != lastErrorAt.UnixMilli() {
 		t.Fatalf("last error timestamp = %v, want %d", diagnostics.LastErrorAt, lastErrorAt.UnixMilli())

@@ -937,7 +937,7 @@ message EBPFInboundDiagnostics {
   uint64 tcAssignmentSweepMissing = 82;
   uint64 tcAssignmentSweepSuperseded = 83;
   uint64 tcAssignmentSweepInFlight = 84;
-  bool localSelfBypassMarkEnabled = 85;
+  reserved 85;
 }
 
 message EBPFAttachmentDiagnostics {

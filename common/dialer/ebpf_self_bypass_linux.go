@@ -184,9 +184,6 @@ func newSelfBypassDialAttempt(tracker *commonEBPF.SelfBypass) *selfBypassDialAtt
 }
 
 func (a *selfBypassDialAttempt) register(rawConn syscall.RawConn) error {
-	if marked, _ := a.tracker.ApplySocketMark(rawConn); marked {
-		return nil
-	}
 	cookie, err := a.tracker.RegisterSocketCookie(rawConn)
 	if err != nil {
 		return err
@@ -265,9 +262,6 @@ func appendEBPFSelfBypassDialer(networkManager adapter.NetworkManager, dialer *n
 		}
 		if attempt := selfBypassDialAttemptFromContext(ctx); attempt != nil {
 			return attempt.register(rawConn)
-		}
-		if marked, _ := tracker.ApplySocketMark(rawConn); marked {
-			return nil
 		}
 		mode := tracker.Mode()
 		if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassUserspaceRelease {

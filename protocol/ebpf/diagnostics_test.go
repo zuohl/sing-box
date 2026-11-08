@@ -119,15 +119,13 @@ func TestEBPFDiagnosticsIncludesEffectiveCgroupPaths(t *testing.T) {
 	}
 }
 
-func TestEBPFDiagnosticsPreservesSelfBypassMarkPath(t *testing.T) {
+func TestEBPFDiagnosticsPreservesSelfBypassPath(t *testing.T) {
 	diagnostics := diagnosticsForAPI(EBPFDiagnostics{
 		LocalSelfBypassMode:        "cgroup_socket_release",
 		LocalSelfBypassCleanupMode: "socket_release",
-		LocalSelfBypassMarkEnabled: true,
 	})
 	if diagnostics.LocalSelfBypassMode != "cgroup_socket_release" ||
-		diagnostics.LocalSelfBypassCleanupMode != "socket_release" ||
-		!diagnostics.LocalSelfBypassMarkEnabled {
+		diagnostics.LocalSelfBypassCleanupMode != "socket_release" {
 		t.Fatalf("self-bypass diagnostics were not preserved: %+v", diagnostics)
 	}
 }
@@ -187,12 +185,12 @@ func TestEBPFDiagnosticsIncludesEffectiveTCState(t *testing.T) {
 }
 
 func TestEBPFDiagnosticsSchemaVersionIncludesEffectiveRuntimeFields(t *testing.T) {
-	if adapter.EBPFDiagnosticsSchemaVersion != 21 {
-		t.Fatalf("schema version = %d, want 21 after adding self-bypass mark diagnostics", adapter.EBPFDiagnosticsSchemaVersion)
+	if adapter.EBPFDiagnosticsSchemaVersion != 22 {
+		t.Fatalf("schema version = %d, want 22 after self-bypass diagnostics update", adapter.EBPFDiagnosticsSchemaVersion)
 	}
 	diagnostics := diagnosticsForAPI(EBPFDiagnostics{SchemaVersion: adapter.EBPFDiagnosticsSchemaVersion, LocalCgroupAttachMode: "link_create"})
-	if diagnostics.SchemaVersion != 21 {
-		t.Fatalf("diagnostics schema version = %d, want 21", diagnostics.SchemaVersion)
+	if diagnostics.SchemaVersion != 22 {
+		t.Fatalf("diagnostics schema version = %d, want 22", diagnostics.SchemaVersion)
 	}
 }
 

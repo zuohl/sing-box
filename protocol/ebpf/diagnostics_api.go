@@ -49,7 +49,6 @@ func diagnosticsForAPI(diagnostics EBPFDiagnostics) adapter.EBPFRuntimeDiagnosti
 		LocalCgroupAttachMode:         diagnostics.LocalCgroupAttachMode,
 		LocalSelfBypassMode:           diagnostics.LocalSelfBypassMode,
 		LocalSelfBypassCleanupMode:    diagnostics.LocalSelfBypassCleanupMode,
-		LocalSelfBypassMarkEnabled:    diagnostics.LocalSelfBypassMarkEnabled,
 		LocalUDPCleanupMode:           diagnostics.LocalUDPCleanupMode,
 		LocalUDPUserspaceCleanupMode:  diagnostics.LocalUDPUserspaceCleanupMode,
 		LocalUDPStorageMode:           diagnostics.LocalUDPStorageMode,

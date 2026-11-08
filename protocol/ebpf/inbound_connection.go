@@ -292,15 +292,11 @@ func (i *Inbound) selfBypassUsesUserspaceRegistration() bool {
 	return i.selfBypass.Mode() == commonEBPF.SelfBypassUserspaceRelease
 }
 
-// selfBypassNeedsSocketRegistration also covers the stateless SO_MARK path:
-// listener sockets must receive the marker even when cgroup hooks are the
-// active fallback for ordinary outbound sockets.
+// selfBypassNeedsSocketRegistration reports whether listener sockets need
+// userspace cookie registration.
 func (i *Inbound) selfBypassNeedsSocketRegistration() bool {
 	if i.selfBypass == nil {
 		return false
-	}
-	if _, _, enabled := i.selfBypass.SocketMarkConfig(); enabled {
-		return true
 	}
 	return i.selfBypassUsesUserspaceRegistration()
 }

@@ -386,12 +386,12 @@ TCX/clsact attachment mode, SOCKMAP/direct listener lookup, delivery interface,
 policy-routing values, active/retired resource counts, health/reconcile times,
 and a network generation that increments at managed handover boundaries.
 
-The local self-bypass fields distinguish the enforcement mechanism selected by
-the cgroup/TC lifecycle from the optional per-socket `SO_MARK` fast path:
-`local_self_bypass_mode` is the actual cleanup/enforcement mode and
-`local_self_bypass_mark_enabled` reports whether the mark path is active.
-Individual mark failures fall back to the cookie map instead of capturing the
-socket.
+The local self-bypass fields report the cookie-based mechanism selected by the
+cgroup lifecycle. `local_self_bypass_mode` is the active enforcement mode and
+`local_self_bypass_cleanup_mode` reports which side owns entry removal. The
+implementation does not use `SO_MARK`; it avoids conflicts with Android
+`netd`, policy routing, and firewall marks. When cgroup hooks are unavailable,
+the userspace socket-cookie map is used as the compatibility fallback.
 
 The diagnostics response carries a response-level `schemaVersion`, including
 when no eBPF inbound is running. Clients should use that value to version the
