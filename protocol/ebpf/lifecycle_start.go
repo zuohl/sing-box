@@ -424,6 +424,9 @@ func (i *Inbound) selfBypassMode() string {
 	if !i.localEnabled || i.selfBypass == nil {
 		return "none"
 	}
+	if _, _, enabled := i.selfBypass.SocketMarkConfig(); enabled {
+		return "socket_mark"
+	}
 	if i.selfBypassCgroup {
 		return i.selfBypass.Mode().String()
 	}

@@ -242,7 +242,7 @@ func (i *Inbound) socketControl(ipv6Listener bool) control.Func {
 }
 
 func (i *Inbound) registerListenerSocket(current *listener.Listener) error {
-	if !i.selfBypassUsesUserspaceRegistration() {
+	if !i.selfBypassNeedsSocketRegistration() {
 		return nil
 	}
 	var registerErr error
@@ -290,6 +290,19 @@ func (i *Inbound) selfBypassUsesUserspaceRegistration() bool {
 		return true
 	}
 	return i.selfBypass.Mode() == commonEBPF.SelfBypassUserspaceRelease
+}
+
+// selfBypassNeedsSocketRegistration also covers the stateless SO_MARK path:
+// listener sockets must receive the marker even when cgroup hooks are the
+// active fallback for ordinary outbound sockets.
+func (i *Inbound) selfBypassNeedsSocketRegistration() bool {
+	if i.selfBypass == nil {
+		return false
+	}
+	if _, _, enabled := i.selfBypass.SocketMarkConfig(); enabled {
+		return true
+	}
+	return i.selfBypassUsesUserspaceRegistration()
 }
 
 func redirectAddressFromOOB(oob []byte) (netip.Addr, error) {
