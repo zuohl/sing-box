@@ -142,6 +142,10 @@ assignment 与返程 map 占用分别报告；未知/未完成扫描不等于零
 attachment 列表是实际运行机制的准确信息。已配置路径没有对应 attachment 时，可能只是
 等待接口；cgroup attachment 本来就不存在网络接口 filter。
 
+对于 local `cgroup`，如果 `local_cgroup_attach_mode` 为空且状态为
+`needs_attention`，表示 cgroup backend 缺失或已关闭，不是等待网络接口。只有 local
+`socket_assign` 在没有可用默认接口时才应报告 `waiting_for_interface`。
+
 local cgroup 还应记录 API 返回的实际运行字段：`local_cgroup_attach_mode`
 （`link_create`、`legacy_multi`、`legacy_exclusive` 或 `mixed`）、
 `local_udp_cleanup_mode`、`local_udp_userspace_cleanup_mode`、

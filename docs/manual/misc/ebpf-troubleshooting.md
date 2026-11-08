@@ -170,6 +170,12 @@ Read attachment entries as the source of truth for the mechanism actually in
 use. A configured path without a corresponding attachment may legitimately be
 waiting for an interface; a cgroup attachment has no network-interface filter.
 
+For local `cgroup`, an empty `local_cgroup_attach_mode` with state
+`needs_attention` means that the cgroup backend is absent or closed; it is not
+a request to wait for a network interface. For local `socket_assign`,
+`waiting_for_interface` still means that no eligible default interface is
+currently attached.
+
 For local cgroup, also record the effective runtime fields returned by the API:
 `local_cgroup_attach_mode` (`link_create`, `legacy_multi`,
 `legacy_exclusive`, or `mixed`), `local_udp_cleanup_mode`,
