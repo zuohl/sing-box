@@ -35,7 +35,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 		if defaultInterface == nil || iif.Index != defaultInterface.Index {
 			perNetDialer.Control = control.Append(perNetDialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
 		}
-		conn, err := perNetDialer.DialContext(ctx, network, addr)
+		conn, err := d.dialWithSelfBypass(ctx, perNetDialer, network, addr)
 		if err != nil {
 			return nil, false, E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")")
 		}
@@ -57,7 +57,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 		if defaultInterface == nil || iif.Index != defaultInterface.Index {
 			perNetDialer.Control = control.Append(perNetDialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
 		}
-		conn, err := perNetDialer.DialContext(ctx, network, addr)
+		conn, err := d.dialWithSelfBypass(ctx, perNetDialer, network, addr)
 		if err != nil {
 			select {
 			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")"), primary: primary}:
@@ -130,7 +130,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		if defaultInterface == nil || iif.Index != defaultInterface.Index {
 			perNetDialer.Control = control.Append(perNetDialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
 		}
-		conn, err := perNetDialer.DialContext(ctx, network, addr)
+		conn, err := d.dialWithSelfBypass(ctx, perNetDialer, network, addr)
 		if err != nil {
 			return nil, false, E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")")
 		}
@@ -153,7 +153,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		if defaultInterface == nil || iif.Index != defaultInterface.Index {
 			perNetDialer.Control = control.Append(perNetDialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
 		}
-		conn, err := perNetDialer.DialContext(ctx, network, addr)
+		conn, err := d.dialWithSelfBypass(ctx, perNetDialer, network, addr)
 		if err != nil {
 			select {
 			case results <- dialResult{error: E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")"), primary: primary}:
