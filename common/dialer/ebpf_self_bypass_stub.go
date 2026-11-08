@@ -3,6 +3,7 @@
 package dialer
 
 import (
+	"context"
 	"net"
 	"syscall"
 
@@ -10,6 +11,14 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
 )
+
+func appendEBPFSelfBypassDialer(_ adapter.NetworkManager, _ *net.Dialer) {}
+
+func (d *DefaultDialer) selfBypassTracker() any { return nil }
+
+func (d *DefaultDialer) dialWithSelfBypass(ctx context.Context, dialer net.Dialer, network, address string) (net.Conn, error) {
+	return dialer.DialContext(ctx, network, address)
+}
 
 func bindEBPFSelfBypassConnLifecycle(_ adapter.NetworkManager, conn net.Conn) net.Conn {
 	return conn
