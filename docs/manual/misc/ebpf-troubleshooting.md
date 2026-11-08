@@ -144,7 +144,7 @@ positively identified sing-box state.
 
 ### Interpreting `sing-box api ebpf`
 
-Schema 20 separates lightweight status from deep inspection. Use
+Schema 21 separates lightweight status from deep inspection. Use
 `sing-box api ebpf --deep` or the dashboard's **Inspect owned maps** action.
 Each inbound has its own `kernelRuntime`; the top-level section is a
 de-duplicated union, not an inbound's health. Deep snapshots are request-driven

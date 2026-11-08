@@ -121,7 +121,7 @@ assignment 记录。记录可能已被另一个 reader 消费、在网络切换�
 
 ### 解读 `sing-box api ebpf`
 
-Schema 20 将轻量状态与深度检查分开。用 `sing-box api ebpf --deep` 或 dashboard
+Schema 21 将轻量状态与深度检查分开。用 `sing-box api ebpf --deep` 或 dashboard
 的“深度检查所属 Map”枚举内核资源。每个 inbound 有自己的 `kernelRuntime`，
 顶层仅为去重汇总，不能把它的压力归到所有 inbound。深度快照按需读取，最多缓存 5 秒。
 
