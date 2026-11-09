@@ -7945,6 +7945,7 @@ type EBPFInboundDiagnostics struct {
 	TcAssignmentSweepMissing      uint64                         `protobuf:"varint,82,opt,name=tcAssignmentSweepMissing,proto3" json:"tcAssignmentSweepMissing,omitempty"`
 	TcAssignmentSweepSuperseded   uint64                         `protobuf:"varint,83,opt,name=tcAssignmentSweepSuperseded,proto3" json:"tcAssignmentSweepSuperseded,omitempty"`
 	TcAssignmentSweepInFlight     uint64                         `protobuf:"varint,84,opt,name=tcAssignmentSweepInFlight,proto3" json:"tcAssignmentSweepInFlight,omitempty"`
+	LocalSelfBypassFallbackReason string                         `protobuf:"bytes,86,opt,name=localSelfBypassFallbackReason,proto3" json:"localSelfBypassFallbackReason,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -8516,6 +8517,13 @@ func (x *EBPFInboundDiagnostics) GetTcAssignmentSweepInFlight() uint64 {
 		return x.TcAssignmentSweepInFlight
 	}
 	return 0
+}
+
+func (x *EBPFInboundDiagnostics) GetLocalSelfBypassFallbackReason() string {
+	if x != nil {
+		return x.LocalSelfBypassFallbackReason
+	}
+	return ""
 }
 
 type EBPFAttachmentDiagnostics struct {
@@ -9896,7 +9904,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\bcategory\x18\f \x01(\tR\bcategory\x12$\n" +
 	"\roccupancyMode\x18\r \x01(\tR\roccupancyMode\x12\"\n" +
 	"\fevictionMode\x18\x0e \x01(\tR\fevictionMode\x12,\n" +
-	"\x11admissionCritical\x18\x0f \x01(\bR\x11admissionCritical\"\xc1!\n" +
+	"\x11admissionCritical\x18\x0f \x01(\bR\x11admissionCritical\"\x87\"\n" +
 	"\x16EBPFInboundDiagnostics\x12\x1e\n" +
 	"\n" +
 	"observedAt\x18\x02 \x01(\x03R\n" +
@@ -9977,7 +9985,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\rtcRoutingSlot\x18Q \x01(\x05R\rtcRoutingSlot\x12:\n" +
 	"\x18tcAssignmentSweepMissing\x18R \x01(\x04R\x18tcAssignmentSweepMissing\x12@\n" +
 	"\x1btcAssignmentSweepSuperseded\x18S \x01(\x04R\x1btcAssignmentSweepSuperseded\x12<\n" +
-	"\x19tcAssignmentSweepInFlight\x18T \x01(\x04R\x19tcAssignmentSweepInFlightB\x0e\n" +
+	"\x19tcAssignmentSweepInFlight\x18T \x01(\x04R\x19tcAssignmentSweepInFlight\x12D\n" +
+	"\x1dlocalSelfBypassFallbackReason\x18V \x01(\tR\x1dlocalSelfBypassFallbackReasonB\x0e\n" +
 	"\f_lastErrorAtB\x11\n" +
 	"\x0f_lastRecoveryAtB\x0e\n" +
 	"\f_nextRetryAtB\x16\n" +

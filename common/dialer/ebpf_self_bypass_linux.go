@@ -281,7 +281,7 @@ func appendEBPFSelfBypassDialer(networkManager adapter.NetworkManager, dialer *n
 			return attempt.register(rawConn)
 		}
 		mode := tracker.Mode()
-		if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassUserspaceRelease {
+		if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassCgroupSocketAddr && mode != commonEBPF.SelfBypassUserspaceRelease {
 			return nil
 		}
 		_, err := tracker.RegisterSocketCookie(rawConn)
@@ -304,7 +304,7 @@ func (d *DefaultDialer) selfBypassTracker() *commonEBPF.SelfBypass {
 		return nil
 	}
 	mode := tracker.Mode()
-	if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassUserspaceRelease {
+	if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassCgroupSocketAddr && mode != commonEBPF.SelfBypassUserspaceRelease {
 		return nil
 	}
 	return tracker
@@ -386,7 +386,7 @@ func AppendEBPFSelfBypass(networkManager adapter.NetworkManager, controlFunc con
 	tracker := provider.EBPFSelfBypass()
 	selfBypassFunc := func(_ string, _ string, rawConn syscall.RawConn) error {
 		mode := tracker.Mode()
-		if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassUserspaceRelease {
+		if mode != commonEBPF.SelfBypassUserspace && mode != commonEBPF.SelfBypassCgroupSocketAddr && mode != commonEBPF.SelfBypassUserspaceRelease {
 			return nil
 		}
 		return tracker.RegisterSocket(rawConn)

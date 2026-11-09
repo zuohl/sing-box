@@ -387,9 +387,12 @@ policy-routing values, active/retired resource counts, health/reconcile times,
 and a network generation that increments at managed handover boundaries.
 
 The local self-bypass fields report the cookie-based mechanism selected by the
-cgroup lifecycle. `local_self_bypass_mode` is the active enforcement mode and
-`local_self_bypass_cleanup_mode` reports which side owns entry removal. The
-implementation does not use `SO_MARK`; it avoids conflicts with Android
+cgroup lifecycle. `local_self_bypass_mode` is the active enforcement mode,
+`local_self_bypass_cleanup_mode` reports which side owns entry removal, and
+`local_self_bypass_fallback_reason` explains why a stronger hook set was not
+selected. `cgroup_socket_addr` means connect/sendmsg hooks are active while
+userspace cookie cleanup is used because `sock_release` is unavailable.
+The implementation does not use `SO_MARK`; it avoids conflicts with Android
 `netd`, policy routing, and firewall marks. When cgroup hooks are unavailable,
 the userspace socket-cookie map is used as the compatibility fallback.
 

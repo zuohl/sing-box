@@ -938,6 +938,7 @@ message EBPFInboundDiagnostics {
   uint64 tcAssignmentSweepSuperseded = 83;
   uint64 tcAssignmentSweepInFlight = 84;
   reserved 85;
+	string localSelfBypassFallbackReason = 86;
 }
 
 message EBPFAttachmentDiagnostics {

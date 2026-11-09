@@ -64,6 +64,7 @@ func (i *Inbound) diagnosticsLocked() EBPFDiagnostics {
 		if runtime.selfBypass != nil {
 			diagnostics.LocalSelfBypassMode = runtime.selfBypass.Mode().String()
 			diagnostics.LocalSelfBypassCleanupMode = runtime.selfBypass.CleanupMode()
+			diagnostics.LocalSelfBypassFallbackReason = runtime.selfBypass.FallbackReason()
 		}
 	}
 	if backend := runtime.cgroupBackend; backend != nil && !backend.IsClosed() {

@@ -289,7 +289,8 @@ func (i *Inbound) selfBypassUsesUserspaceRegistration() bool {
 	if !i.selfBypassCgroup {
 		return true
 	}
-	return i.selfBypass.Mode() == commonEBPF.SelfBypassUserspaceRelease
+	return i.selfBypass.Mode() == commonEBPF.SelfBypassCgroupSocketAddr ||
+		i.selfBypass.Mode() == commonEBPF.SelfBypassUserspaceRelease
 }
 
 // selfBypassNeedsSocketRegistration reports whether listener sockets need

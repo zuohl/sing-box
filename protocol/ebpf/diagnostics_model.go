@@ -130,6 +130,7 @@ type EBPFDiagnostics struct {
 	LocalCgroupAttachMode         string     `json:"local_cgroup_attach_mode,omitempty"`
 	LocalSelfBypassMode           string     `json:"local_self_bypass_mode,omitempty"`
 	LocalSelfBypassCleanupMode    string     `json:"local_self_bypass_cleanup_mode,omitempty"`
+	LocalSelfBypassFallbackReason string     `json:"local_self_bypass_fallback_reason,omitempty"`
 	LocalUDPCleanupMode           string     `json:"local_udp_cleanup_mode,omitempty"`
 	LocalUDPUserspaceCleanupMode  string     `json:"local_udp_userspace_cleanup_mode,omitempty"`
 	LocalUDPStorageMode           string     `json:"local_udp_storage_mode,omitempty"`

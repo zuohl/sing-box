@@ -345,8 +345,10 @@ listener 查找、delivery 接口、策略路由值、活动/待回收资源数�
 
 local 自绕过诊断报告 cgroup 生命周期实际选择的 cookie 机制：
 `local_self_bypass_mode` 表示当前的执行模式，`local_self_bypass_cleanup_mode` 表示由哪一侧
-负责删除记录。实现不使用 `SO_MARK`，避免与 Android `netd`、策略路由和防火墙 mark 冲突；
-当 cgroup hook 不可用时，会回退到用户空间 socket-cookie map。
+负责删除记录，`local_self_bypass_fallback_reason` 说明为什么没有选择更强的 hook 组合。
+`cgroup_socket_addr` 表示 connect/sendmsg hook 已启用，但由于 `sock_release` 不可用而由
+用户空间负责 cookie 清理。实现不使用 `SO_MARK`，避免与 Android `netd`、策略路由和防火墙
+mark 冲突；当 cgroup hook 不可用时，会回退到用户空间 socket-cookie map。
 
 诊断响应在顶层携带 `schemaVersion`，即使当前没有运行中的 eBPF 入站也会返回。客户端
 应以该字段作为整份响应的版本。
