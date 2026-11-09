@@ -3,8 +3,10 @@
 package dialer
 
 import (
+	"context"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 
 	commonEBPF "github.com/CHIZI-0618/sing-ebpf"
@@ -64,5 +66,25 @@ func TestSelfBypassCleanupModeContract(t *testing.T) {
 	}
 	if selfBypassNeedsUserspaceCleanup("socket_release") {
 		t.Fatal("kernel release mode must not install duplicate userspace cleanup")
+	}
+}
+
+func TestAppendDialerControlPreservesControlContext(t *testing.T) {
+	var baseCalled, extraCalled bool
+	dialer := &net.Dialer{
+		ControlContext: func(context.Context, string, string, syscall.RawConn) error {
+			baseCalled = true
+			return nil
+		},
+	}
+	appendDialerControl(dialer, func(string, string, syscall.RawConn) error {
+		extraCalled = true
+		return nil
+	})
+	if err := dialer.ControlContext(context.Background(), "tcp", "127.0.0.1:1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if !baseCalled || !extraCalled {
+		t.Fatalf("control hooks were not chained: base=%v extra=%v", baseCalled, extraCalled)
 	}
 }

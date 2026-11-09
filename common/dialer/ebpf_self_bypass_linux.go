@@ -161,9 +161,15 @@ func EBPFSelfBypassCleanup(networkManager adapter.NetworkManager, rawConn syscal
 	if tracker == nil || !selfBypassNeedsUserspaceCleanup(tracker.CleanupMode()) {
 		return nil
 	}
+	// Read the cookie before returning the callback. The socket may be closed
+	// through another reference before the owner invokes this callback.
+	cookie, err := tracker.SocketCookie(rawConn)
+	if err != nil {
+		return nil
+	}
 	var once sync.Once
 	return func() {
-		once.Do(func() { _ = tracker.UnregisterSocket(rawConn) })
+		once.Do(func() { _ = tracker.UnregisterCookie(cookie) })
 	}
 }
 
@@ -177,7 +183,10 @@ type selfBypassDialAttempt struct {
 	tracker *commonEBPF.SelfBypass
 	access  sync.Mutex
 	pending map[uint64]struct{}
+	done    bool
 }
+
+var errSelfBypassDialDone = E.New("eBPF self-bypass dial attempt already finished")
 
 func newSelfBypassDialAttempt(tracker *commonEBPF.SelfBypass) *selfBypassDialAttempt {
 	return &selfBypassDialAttempt{tracker: tracker, pending: make(map[uint64]struct{})}
@@ -192,34 +201,43 @@ func (a *selfBypassDialAttempt) register(rawConn syscall.RawConn) error {
 		return nil
 	}
 	a.access.Lock()
+	if a.done {
+		a.access.Unlock()
+		_ = a.tracker.UnregisterCookie(cookie)
+		return errSelfBypassDialDone
+	}
 	a.pending[cookie] = struct{}{}
 	a.access.Unlock()
 	return nil
 }
 
-func (a *selfBypassDialAttempt) commit(conn net.Conn) {
+// commit keeps the returned connection registered. It reports false when the
+// winner cannot be identified, in which case cleanup must not run.
+func (a *selfBypassDialAttempt) commit(conn net.Conn) bool {
 	if conn == nil {
-		return
+		return false
 	}
 	syscallConn, loaded := conn.(syscall.Conn)
 	if !loaded {
-		return
+		return false
 	}
 	rawConn, err := syscallConn.SyscallConn()
 	if err != nil {
-		return
+		return false
 	}
 	cookie, err := a.tracker.SocketCookie(rawConn)
 	if err != nil {
-		return
+		return false
 	}
 	a.access.Lock()
 	delete(a.pending, cookie)
 	a.access.Unlock()
+	return true
 }
 
 func (a *selfBypassDialAttempt) cleanup() {
 	a.access.Lock()
+	a.done = true
 	pending := make([]uint64, 0, len(a.pending))
 	for cookie := range a.pending {
 		pending = append(pending, cookie)
@@ -249,7 +267,6 @@ func appendEBPFSelfBypassDialer(networkManager adapter.NetworkManager, dialer *n
 	tracker := provider.EBPFSelfBypass()
 	baseControl := dialer.Control
 	baseControlContext := dialer.ControlContext
-	dialer.Control = nil
 	dialer.ControlContext = func(ctx context.Context, network, address string, rawConn syscall.RawConn) error {
 		if baseControlContext != nil {
 			if err := baseControlContext(ctx, network, address, rawConn); err != nil {
@@ -305,7 +322,9 @@ func (d *DefaultDialer) dialWithSelfBypass(ctx context.Context, dialer net.Diale
 		attempt.cleanup()
 		return conn, err
 	}
-	attempt.commit(conn)
+	if attempt.commit(conn) {
+		attempt.cleanup()
+	}
 	return conn, nil
 }
 
