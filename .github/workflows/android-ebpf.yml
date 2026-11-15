@@ -71,3 +71,68 @@ jobs:
         with:
           name: sing-box-android-${{ matrix.target.goarch }}-with-ebpf
           path: sing-box
+
+      - name: Send arm64 eBPF binary to Telegram
+        if: ${{ matrix.target.goarch == 'arm64' }}
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+          TELEGRAM_MAX_DOCUMENT_BYTES: ${{ vars.TELEGRAM_MAX_DOCUMENT_BYTES }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing, skipping upload."
+            exit 0
+          fi
+
+          output_name="sing-box-android-arm64-with-ebpf"
+          cp sing-box "${output_name}"
+          tar -czf "${output_name}.tar.gz" "${output_name}"
+
+          max_document_bytes="${TELEGRAM_MAX_DOCUMENT_BYTES:-52428800}"
+          doc_path="${output_name}.tar.gz"
+          doc_size="$(stat -c '%s' "$doc_path")"
+          if [ "$doc_size" -gt "$max_document_bytes" ]; then
+            echo "::warning::Skipping Telegram upload because file is $doc_size bytes, above $max_document_bytes limit."
+            exit 0
+          fi
+
+          commit_id="$(git rev-parse HEAD)"
+          commit_short_id="$(git rev-parse --short=12 HEAD)"
+          commit_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$commit_id"
+          workflow_run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          commit_message="$(git log -1 --pretty=%B)"
+          commit_message="${commit_message//$'\r'/}"
+          if [ -z "${commit_message//[[:space:]]/}" ]; then
+            commit_message="(empty commit message)"
+          fi
+          if [ "${#commit_message}" -gt 650 ]; then
+            commit_message="${commit_message:0:650}"$'\n...'
+          fi
+          commit_message_html="$(printf '%s' "$commit_message" | python3 -c 'import html, sys; print(html.escape(sys.stdin.read(), quote=False), end="")')"
+
+          caption="$(printf 'sing-box (Android eBPF)\n\n%s\n\n%s\n<a href="%s">Commit</a> | <a href="%s">Workflow run</a>' \
+            "$commit_message_html" \
+            "$commit_short_id" \
+            "$commit_url" \
+            "$workflow_run_url")"
+
+          echo "Uploading ${doc_path} to Telegram"
+          args=(
+            --fail-with-body
+            -sS
+            -X POST
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+            --form-string "chat_id=${TELEGRAM_CHAT_ID}"
+            --form "document=@${doc_path};filename=${doc_path}"
+            --form-string "caption=${caption}"
+            --form-string "parse_mode=HTML"
+          )
+
+          if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
+            args+=(--form-string "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}")
+          fi
+
+          curl "${args[@]}"
